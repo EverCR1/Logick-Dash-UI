@@ -1,0 +1,148 @@
+import { useState } from 'react'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import { Loader2, Settings, X } from 'lucide-react'
+import { I } from '@/components/icons'
+import { Select } from '@/components/ui/Select'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Pagination } from '@/components/ui/Pagination'
+import { GestionarReporte } from './GestionarReporte'
+import { reportesTiendaApi } from '@/lib/api'
+import { fmtN, fmtFecha } from '@/lib/format'
+import { REPORTE_CATEGORIAS, type ReporteCategoria, type ReporteEstado, type ReporteFiltros, type ReporteProblema } from '@/types/reporte-problema'
+
+const PER_PAGE = 20
+
+const ESTADO_BADGE: Record<ReporteEstado, { label: string; tone?: 'pos' | 'neg' | 'warn' }> = {
+  pendiente: { label: 'Pendiente', tone: 'warn' },
+  en_revision: { label: 'En revisión' },
+  resuelto: { label: 'Resuelto', tone: 'pos' },
+  invalido: { label: 'Inválido', tone: 'neg' },
+}
+
+function contacto(r: ReporteProblema): string {
+  if (r.cuenta) return [r.cuenta.nombre, r.cuenta.apellido].filter(Boolean).join(' ') || r.cuenta.email
+  return r.nombre_contacto || r.email_contacto || 'Invitado'
+}
+
+export default function ReportesTiendaPage() {
+  const [estado, setEstado] = useState('todos')
+  const [categoria, setCategoria] = useState('todos')
+  const [page, setPage] = useState(1)
+  const [gestionar, setGestionar] = useState<ReporteProblema | null>(null)
+
+  const filtros: ReporteFiltros = {
+    estado: estado !== 'todos' ? estado : undefined,
+    categoria: categoria !== 'todos' ? categoria : undefined,
+    page, per_page: PER_PAGE,
+  }
+
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
+    queryKey: ['reportes-tienda', filtros],
+    queryFn: () => reportesTiendaApi.listar(filtros),
+    placeholderData: keepPreviousData,
+  })
+
+  const reportes = data?.reportes.data ?? []
+  const counts = data?.counts
+  const meta = data?.reportes
+
+  const opcionesCategoria = [
+    { value: 'todos', label: 'Todas las categorías' },
+    ...Object.entries(REPORTE_CATEGORIAS).map(([value, label]) => ({ value, label })),
+  ]
+
+  return (
+    <>
+      <PageHeader title="Reportes de tienda" subtitle="Problemas reportados por clientes de la tienda" />
+
+      {counts && (
+        <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}>
+          {[
+            { label: 'Total', value: counts.total, icon: I.Flag, tone: 'accent' as const, sub: 'reportes' },
+            { label: 'Pendientes', value: counts.pendiente, icon: I.Clock, tone: 'warn' as const, sub: 'sin revisar' },
+            { label: 'En revisión', value: counts.en_revision, icon: I.Search, tone: 'info' as const, sub: 'en proceso' },
+            { label: 'Resueltos', value: counts.resuelto, icon: I.CheckCircle, tone: 'pos' as const, sub: 'cerrados' },
+            { label: 'Inválidos', value: counts.invalido, icon: I.Ban, tone: 'neg' as const, sub: 'descartados' },
+          ].map((k, i) => {
+            const IconC = k.icon
+            return (
+              <div key={i} className="kpi">
+                <div className="kpi-row1"><div className="kpi-label">{k.label}</div><div className="kpi-icon" data-tone={k.tone}><IconC /></div></div>
+                <div className="kpi-value tnum">{fmtN(k.value)}</div>
+                <div className="kpi-meta"><span>{k.sub}</span></div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <div className="toolbar">
+        <Select value={estado} onValueChange={(v) => { setEstado(v); setPage(1) }} ariaLabel="Estado"
+          options={[
+            { value: 'todos', label: 'Todos los estados' },
+            { value: 'pendiente', label: 'Pendientes' },
+            { value: 'en_revision', label: 'En revisión' },
+            { value: 'resuelto', label: 'Resueltos' },
+            { value: 'invalido', label: 'Inválidos' },
+          ]} />
+        <Select value={categoria} onValueChange={(v) => { setCategoria(v); setPage(1) }} ariaLabel="Categoría" options={opcionesCategoria} />
+        {(estado !== 'todos' || categoria !== 'todos') && (
+          <button className="btn" onClick={() => { setEstado('todos'); setCategoria('todos'); setPage(1) }} title="Limpiar filtros"><X size={15} /> Limpiar</button>
+        )}
+        {isFetching && <Loader2 size={14} className="spin" style={{ color: 'var(--text-faint)' }} />}
+      </div>
+
+      <div className="card">
+        {isLoading ? (
+          <div className="empty" style={{ padding: 80 }}><Loader2 size={26} className="spin" style={{ color: 'var(--accent)' }} /><div>Cargando…</div></div>
+        ) : isError ? (
+          <div className="empty" style={{ padding: 80 }}><I.AlertCircle /><div>No se pudieron cargar los reportes</div>
+            <button className="btn" style={{ marginTop: 10 }} onClick={() => refetch()}><I.Refresh /> Reintentar</button></div>
+        ) : reportes.length === 0 ? (
+          <div className="empty" style={{ padding: 80 }}><I.Flag /><div>No hay reportes con esos filtros</div></div>
+        ) : (
+          <>
+            <table className="tbl">
+              <thead><tr>
+                <th className="num" style={{ width: 48 }}>No.</th>
+                <th style={{ width: 160 }}>Categoría</th>
+                <th>Descripción</th>
+                <th style={{ width: 150 }}>Contacto</th>
+                <th style={{ width: 110 }}>Fecha</th>
+                <th style={{ width: 110 }}>Estado</th>
+                <th style={{ width: 80, textAlign: 'right' }}>Gestión</th>
+              </tr></thead>
+              <tbody>
+                {reportes.map((r, i) => {
+                  const badge = ESTADO_BADGE[r.estado]
+                  return (
+                    <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => setGestionar(r)}>
+                      <td className="num muted tnum">{(meta?.from ?? 1) + i}</td>
+                      <td>
+                        <span className="badge"><span className="b-dot" />{r.categoria_label ?? REPORTE_CATEGORIAS[r.categoria as ReporteCategoria] ?? r.categoria}</span>
+                      </td>
+                      <td style={{ maxWidth: 380 }}>
+                        <div style={{ fontSize: 12.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{r.descripcion}</div>
+                      </td>
+                      <td className="muted" style={{ fontSize: 12 }}>{contacto(r)}</td>
+                      <td className="muted" style={{ fontSize: 12 }}>{fmtFecha(r.created_at)}</td>
+                      <td><span className="badge" data-tone={badge.tone}><span className="b-dot" />{badge.label}</span></td>
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <div className="row-actions">
+                          <button className="icon-action" data-variant="edit" title="Gestionar" onClick={() => setGestionar(r)}><Settings /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+            {meta && <Pagination meta={meta} page={page} setPage={setPage} />}
+          </>
+        )}
+      </div>
+
+      <GestionarReporte open={!!gestionar} onClose={() => setGestionar(null)} reporteId={gestionar?.id ?? null} />
+    </>
+  )
+}
