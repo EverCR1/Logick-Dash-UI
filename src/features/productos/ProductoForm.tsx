@@ -2,14 +2,19 @@ import { useState, useEffect, useRef, useMemo, type ReactNode, type FormEvent } 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { toast } from 'sonner'
-import { Loader2, Star, Trash2, ImagePlus, Wand2 } from 'lucide-react'
+import { Loader2, Star, Trash2, ImagePlus, Wand2, Plus, Layers, X } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
 import { MultiSelect } from '@/components/ui/MultiSelect'
 import { ProductoImagenes } from './ProductoImagenes'
+import { CrearProveedorRapido } from './CrearProveedorRapido'
+import { CrearCategoriaRapida } from './CrearCategoriaRapida'
+import { VariantesVinculadas } from './VariantesVinculadas'
+import { CopiarVariante } from './CopiarVariante'
+import { VincularEnCreacion } from './VincularEnCreacion'
 import { productosApi, catalogosApi } from '@/lib/api'
 import { generarSkuDesdeNombre } from '@/lib/sku'
-import type { Producto } from '@/types/producto'
+import type { Producto, ProductoAtributo } from '@/types/producto'
 
 interface ProductoFormProps {
   open: boolean
@@ -31,7 +36,7 @@ function desdeProducto(p: Producto): FormState {
     sku: p.sku ?? '', nombre: p.nombre ?? '', marca: p.marca ?? '', color: p.color ?? '',
     codigo_barras: p.codigo_barras ?? '', ubicacion: p.ubicacion ?? '', garantia: p.garantia ?? '',
     descripcion: p.descripcion ?? '', especificaciones: p.especificaciones ?? '',
-    notas_internas: '', proveedor_id: p.proveedor_id ? String(p.proveedor_id) : '', estado: p.estado,
+    notas_internas: p.notas_internas ?? '', proveedor_id: p.proveedor_id ? String(p.proveedor_id) : '', estado: p.estado,
     precio_compra: String(p.precio_compra ?? ''), precio_venta: String(p.precio_venta ?? ''),
     precio_oferta: p.precio_oferta ? String(p.precio_oferta) : '',
     stock: String(p.stock ?? ''), stock_minimo: String(p.stock_minimo ?? ''),
@@ -50,6 +55,15 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
   const [principalIdx, setPrincipalIdx] = useState(0)
   // El SKU se autogenera desde el nombre hasta que el usuario lo edite a mano
   const [skuManual, setSkuManual] = useState(false)
+  // Modales de creación rápida (proveedor / categoría)
+  const [crearProv, setCrearProv] = useState(false)
+  const [crearCat, setCrearCat] = useState(false)
+  // Variantes y atributos
+  const [tieneVariantes, setTieneVariantes] = useState(false)
+  const [grupoVariante, setGrupoVariante] = useState<string | null>(null)
+  const [atributos, setAtributos] = useState<ProductoAtributo[]>([])
+  // Productos existentes a vincular al grupo cuando se crea (se aplican al guardar)
+  const [aVincular, setAVincular] = useState<Producto[]>([])
 
   // Resetea el formulario al abrir (vacío para crear, con datos para editar)
   useEffect(() => {
@@ -61,7 +75,50 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
     setPrincipalIdx(0)
     // Al editar respetamos el SKU existente; al crear se autogenera con el nombre
     setSkuManual(!!producto)
+    // Variantes / atributos
+    const attrs = producto?.atributos ?? []
+    setAtributos(attrs.map((a) => ({ nombre: a.nombre, valor: a.valor })))
+    setGrupoVariante(producto?.grupo_variante ?? null)
+    setTieneVariantes(!!producto?.grupo_variante || attrs.length > 0)
+    setAVincular([])
   }, [open, producto])
+
+  // Margen estimado: ((venta - compra) / compra) * 100
+  const margen = useMemo(() => {
+    const c = parseFloat(form.precio_compra)
+    const v = parseFloat(form.precio_venta)
+    return c > 0 && v > 0 ? ((v - c) / c) * 100 : null
+  }, [form.precio_compra, form.precio_venta])
+  const margenTono = margen == null ? undefined : margen >= 30 ? 'pos' : margen >= 15 ? 'warn' : 'neg'
+
+  const addAtributo = () => setAtributos((a) => [...a, { nombre: '', valor: '' }])
+  const setAtributo = (i: number, campo: 'nombre' | 'valor', valor: string) =>
+    setAtributos((a) => a.map((x, idx) => (idx === i ? { ...x, [campo]: valor } : x)))
+  const quitarAtributo = (i: number) => setAtributos((a) => a.filter((_, idx) => idx !== i))
+  const toggleVariantes = (on: boolean) => {
+    setTieneVariantes(on)
+    if (!on) { setAtributos([]); setGrupoVariante(null); setAVincular([]) }
+    else if (atributos.length === 0) setAtributos([{ nombre: '', valor: '' }])
+  }
+
+  // Copiar datos de un producto existente (al crear una variante). Deja SKU, precios y stock en blanco.
+  const aplicarCopia = (p: Producto) => {
+    setForm((f) => ({
+      ...f,
+      nombre: p.nombre ?? '',
+      descripcion: p.descripcion ?? '',
+      especificaciones: p.especificaciones ?? '',
+      marca: p.marca ?? '',
+      garantia: p.garantia ?? '',
+      color: p.color ?? '',
+      proveedor_id: p.proveedor_id ? String(p.proveedor_id) : '',
+    }))
+    setCategorias(p.categorias?.map((c) => c.id) ?? [])
+    setGrupoVariante(p.grupo_variante ?? null)
+    setTieneVariantes(true)
+    setSkuManual(true) // el usuario debe ingresar un SKU propio para la variante
+    setErrores({})
+  }
 
   const { data: proveedores = [] } = useQuery({
     queryKey: ['proveedores-activos'],
@@ -75,6 +132,21 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
     staleTime: 1000 * 60 * 10,
     enabled: open,
   })
+  // Al editar, el producto de la lista no trae 'atributos'; cargamos el detalle completo.
+  const { data: detalle } = useQuery({
+    queryKey: ['producto-detalle', producto?.id],
+    queryFn: () => productosApi.obtener(producto!.id),
+    enabled: open && editar,
+  })
+
+  // Poblar atributos / grupo de variante cuando llega el detalle completo
+  useEffect(() => {
+    if (!detalle) return
+    const attrs = detalle.atributos ?? []
+    setAtributos(attrs.map((a) => ({ nombre: a.nombre, valor: a.valor })))
+    setGrupoVariante(detalle.grupo_variante ?? null)
+    setTieneVariantes(!!detalle.grupo_variante || attrs.length > 0)
+  }, [detalle])
 
   const set = (campo: string, valor: string) => {
     setForm((f) => ({ ...f, [campo]: valor }))
@@ -95,6 +167,10 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
 
   const guardar = useMutation({
     mutationFn: async () => {
+      // Grupo final: el copiado/existente, o uno nuevo si hay productos en cola para vincular
+      const grupoFinal = tieneVariantes
+        ? (grupoVariante || (!editar && aVincular.length > 0 ? `grupo-${form.sku.trim() || Date.now()}` : null))
+        : null
       const payload = {
         sku: form.sku.trim(),
         nombre: form.nombre.trim(),
@@ -113,7 +189,14 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
         ubicacion: form.ubicacion.trim() || null,
         garantia: form.garantia.trim() || null,
         notas_internas: form.notas_internas.trim() || null,
+        grupo_variante: grupoFinal,
         categorias,
+        // Solo tocar atributos si es creación o ya cargó el detalle (evita borrarlos al editar antes de cargar)
+        ...((!editar || detalle) && {
+          atributos: tieneVariantes
+            ? atributos.filter((a) => a.nombre.trim() && a.valor.trim()).map((a) => ({ nombre: a.nombre.trim(), valor: a.valor.trim() }))
+            : [],
+        }),
       }
       if (editar) return productosApi.actualizar(producto!.id, payload)
       // Crear: primero el producto, luego subir las imágenes seleccionadas
@@ -123,11 +206,16 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
         const elegida = subidas[principalIdx] ?? subidas[0]
         if (elegida) await productosApi.imagenPrincipal(creado.id, elegida.id)
       }
+      // Vincular los productos en cola al mismo grupo
+      if (grupoFinal && aVincular.length > 0) {
+        await Promise.all(aVincular.map((p) => productosApi.vincularGrupo(p.id, grupoFinal)))
+      }
       return creado
     },
     onSuccess: () => {
       toast.success(editar ? 'Producto actualizado' : 'Producto creado')
       queryClient.invalidateQueries({ queryKey: ['productos'] })
+      if (editar && producto) queryClient.invalidateQueries({ queryKey: ['producto-detalle', producto.id] })
       onClose()
     },
     onError: (err) => {
@@ -164,6 +252,7 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
   }
 
   return (
+    <>
     <Modal
       open={open}
       onOpenChange={(o) => !o && onClose()}
@@ -195,6 +284,10 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
           <input className="form-input" value={form.nombre} onChange={(e) => onNombre(e.target.value)} aria-invalid={!!errores.nombre} placeholder="Nombre del producto" />
         </Campo>
 
+        <Campo label="Descripción" error={errores.descripcion} col2>
+          <textarea className="form-textarea" value={form.descripcion} onChange={(e) => set('descripcion', e.target.value)} />
+        </Campo>
+
         <Campo label="Marca" error={errores.marca}>
           <input className="form-input" value={form.marca} onChange={(e) => set('marca', e.target.value)} />
         </Campo>
@@ -203,26 +296,38 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
         </Campo>
 
         <Campo label="Proveedor" req error={errores.proveedor_id}>
-          <Select
-            value={form.proveedor_id}
-            onValueChange={(v) => set('proveedor_id', v)}
-            placeholder="Seleccionar…"
-            options={proveedores.map((p) => ({ value: String(p.id), label: p.nombre }))}
-          />
+          <div style={{ display: 'flex', gap: 6 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Select
+                value={form.proveedor_id}
+                onValueChange={(v) => set('proveedor_id', v)}
+                placeholder="Seleccionar…"
+                options={proveedores.map((p) => ({ value: String(p.id), label: p.nombre }))}
+              />
+            </div>
+            <button type="button" className="btn" title="Crear proveedor" onClick={() => setCrearProv(true)}><Plus size={14} /></button>
+          </div>
         </Campo>
         <Campo label="Estado" req error={errores.estado}>
           <Select value={form.estado} onValueChange={(v) => set('estado', v)}
             options={[{ value: 'activo', label: 'Activo' }, { value: 'inactivo', label: 'Inactivo' }]} />
         </Campo>
 
-        <Campo label="Categorías" req error={errores.categorias} col2>
+        <div className="form-field col-2">
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>Categorías<span className="req"> *</span></span>
+            <button type="button" className="btn btn-sm" onClick={() => setCrearCat(true)}><Plus size={13} /> Nueva</button>
+          </label>
           <MultiSelect
-            options={opcionesCat.map((c) => ({ value: c.id, label: c.nombre }))}
+            options={opcionesCat.map((c) => ({ value: c.id, label: c.nombre, nivel: c.nivel }))}
             selected={categorias}
             onChange={(s) => { setCategorias(s); setErrores((e) => ({ ...e, categorias: '' })) }}
             placeholder="Seleccionar categorías…"
+            searchable
+            searchPlaceholder="Buscar categoría…"
           />
-        </Campo>
+          {errores.categorias && <span className="form-error">{errores.categorias}</span>}
+        </div>
 
         <div className="form-section-title">Precios e inventario</div>
         <Campo label="Precio compra" req error={errores.precio_compra}>
@@ -234,6 +339,15 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
         <Campo label="Precio oferta" error={errores.precio_oferta}>
           <input type="number" step="0.01" min="0" className="form-input" value={form.precio_oferta} onChange={(e) => set('precio_oferta', e.target.value)} placeholder="Opcional" />
         </Campo>
+        <div className="form-field">
+          <label>Margen estimado</label>
+          <div className="margen-box">
+            {margen == null
+              ? <span className="muted">—</span>
+              : <span className="badge" data-tone={margenTono}><span className="b-dot" />{margen.toFixed(1)}%</span>}
+            <span className="muted" style={{ fontSize: 11.5 }}>sobre el precio de compra</span>
+          </div>
+        </div>
         <Campo label="Garantía" error={errores.garantia}>
           <input className="form-input" value={form.garantia} onChange={(e) => set('garantia', e.target.value)} placeholder="Ej: 6 meses" />
         </Campo>
@@ -248,12 +362,52 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
         </Campo>
 
         <div className="form-section-title">Detalles</div>
-        <Campo label="Descripción" error={errores.descripcion} col2>
-          <textarea className="form-textarea" value={form.descripcion} onChange={(e) => set('descripcion', e.target.value)} />
-        </Campo>
         <Campo label="Especificaciones" error={errores.especificaciones} col2>
           <textarea className="form-textarea" value={form.especificaciones} onChange={(e) => set('especificaciones', e.target.value)} />
         </Campo>
+        <Campo label="Notas internas" error={errores.notas_internas} col2 hint="Visibles solo para el equipo interno">
+          <textarea className="form-textarea" value={form.notas_internas} onChange={(e) => set('notas_internas', e.target.value)} placeholder="Notas que no se muestran al cliente…" />
+        </Campo>
+
+        <div className="form-section-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span><Layers size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />Variantes y atributos</span>
+          <label className="switch-inline">
+            <input type="checkbox" checked={tieneVariantes} onChange={(e) => toggleVariantes(e.target.checked)} />
+            <span>Pertenece a un grupo de variantes</span>
+          </label>
+        </div>
+        {tieneVariantes && (
+          <div className="col-2 atributos-box">
+            {!editar && <CopiarVariante onCopiar={aplicarCopia} />}
+            <div className="muted" style={{ fontSize: 12 }}>
+              Define los atributos que distinguen esta variante (ej: <b>Capacidad</b> / 128GB, <b>Talla</b> / XL).
+            </div>
+            {atributos.length === 0 && <div className="muted" style={{ fontSize: 12.5 }}>Sin atributos. Agrega al menos uno.</div>}
+            {atributos.map((a, i) => (
+              <div key={i} className="atributo-row">
+                <input className="form-input" value={a.nombre} onChange={(e) => setAtributo(i, 'nombre', e.target.value)} placeholder="Atributo (ej: Capacidad)" />
+                <input className="form-input" value={a.valor} onChange={(e) => setAtributo(i, 'valor', e.target.value)} placeholder="Valor (ej: 128GB)" />
+                <button type="button" className="icon-action" data-variant="delete" title="Quitar atributo" onClick={() => quitarAtributo(i)}><X size={15} /></button>
+              </div>
+            ))}
+            <div>
+              <button type="button" className="btn btn-sm" onClick={addAtributo}><Plus size={13} /> Agregar atributo</button>
+            </div>
+            {grupoVariante && <div className="muted" style={{ fontSize: 11 }}>Grupo: <code>{grupoVariante}</code></div>}
+
+            {editar && producto && (
+              <VariantesVinculadas
+                productoId={producto.id}
+                sku={form.sku}
+                grupo={grupoVariante}
+                onGrupoChange={(g) => { setGrupoVariante(g); if (g) setTieneVariantes(true) }}
+              />
+            )}
+            {!editar && (
+              <VincularEnCreacion seleccionados={aVincular} onChange={setAVincular} />
+            )}
+          </div>
+        )}
 
         <div className="form-section-title">Imágenes</div>
         {editar && producto ? (
@@ -263,6 +417,12 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
         )}
       </form>
     </Modal>
+
+    <CrearProveedorRapido open={crearProv} onClose={() => setCrearProv(false)}
+      onCreated={(p) => set('proveedor_id', String(p.id))} />
+    <CrearCategoriaRapida open={crearCat} onClose={() => setCrearCat(false)}
+      onCreated={(c) => { setCategorias((prev) => [...prev, c.id]); setErrores((e) => ({ ...e, categorias: '' })) }} />
+    </>
   )
 }
 

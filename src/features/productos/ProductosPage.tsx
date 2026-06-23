@@ -90,7 +90,7 @@ export default function ProductosPage() {
 
   const opcionesCategoria = [
     { value: 'todos', label: 'Todas las categorías' },
-    ...categorias.map((c) => ({ value: String(c.id), label: c.nombre })),
+    ...categorias.map((c) => ({ value: String(c.id), label: '— '.repeat(c.nivel) + c.nombre })),
   ]
 
   const onToggleEstado = (p: Producto) =>

@@ -139,6 +139,7 @@ function Kpi({ label, value, icon: IconC, tone, sub }: { label: string; value: s
 }
 
 function DetailTabs({ p, productos }: { p: { email: string | null; telefono: string | null; direccion: string | null; descripcion: string | null }; productos: ProveedorProducto[] }) {
+  const navigate = useNavigate()
   const [tab, setTab] = useState<'resumen' | 'productos'>('resumen')
   const TABS = [
     { id: 'resumen' as const, label: 'Resumen' },
@@ -169,9 +170,9 @@ function DetailTabs({ p, productos }: { p: { email: string | null; telefono: str
               {productos.map((pr) => {
                 const tono = pr.stock <= 0 ? 'neg' : pr.stock <= pr.stock_minimo ? 'warn' : 'pos'
                 return (
-                  <tr key={pr.id}>
+                  <tr key={pr.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/productos/${pr.id}`)} title="Ver producto">
                     <td>
-                      <div style={{ fontWeight: 500 }}>{pr.nombre}</div>
+                      <div style={{ fontWeight: 500, color: 'var(--info)' }}>{pr.nombre}</div>
                       <div className="muted" style={{ fontSize: 11.5 }}>{pr.sku}</div>
                     </td>
                     <td className="muted">{pr.marca ?? '—'}</td>

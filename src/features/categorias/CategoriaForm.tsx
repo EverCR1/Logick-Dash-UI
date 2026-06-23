@@ -97,7 +97,7 @@ export function CategoriaForm({ open, onClose, categoria, parentInicial }: {
   // No permitir que una categoría sea su propio padre
   const opcionesPadre = [
     { value: SIN_PADRE, label: 'Sin categoría padre (nivel 0)' },
-    ...opcionesCat.filter((c) => c.id !== categoria?.id).map((c) => ({ value: String(c.id), label: c.nombre })),
+    ...opcionesCat.filter((c) => c.id !== categoria?.id).map((c) => ({ value: String(c.id), label: '— '.repeat(c.nivel) + c.nombre })),
   ]
 
   return (

@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Loader2, Pencil, Trash2, Wallet, X } from 'lucide-react'
+import { Loader2, Pencil, Trash2, Wallet, X, Eye, Receipt } from 'lucide-react'
 import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -24,6 +25,7 @@ const ESTADO_BADGE: Record<CreditoEstado, { label: string; tone?: 'pos' | 'neg' 
 
 export default function CreditosPage() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const searchDebounced = useDebounce(search)
   const [estado, setEstado] = useState('todos')
@@ -140,12 +142,19 @@ export default function CreditosPage() {
                   const badge = ESTADO_BADGE[c.estado]
                   const pct = progreso(c)
                   const pagado = c.estado === 'pagado'
+                  const concepto = c.producto_o_servicio_dado || (c.venta_id ? `Venta #${c.venta_id}` : null)
                   return (
-                    <tr key={c.id}>
+                    <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/creditos/${c.id}`)}>
                       <td className="num muted tnum">{(meta?.from ?? 1) + i}</td>
                       <td>
                         <div style={{ fontWeight: 600 }}>{c.nombre_cliente}</div>
-                        {c.producto_o_servicio_dado && <div className="muted" style={{ fontSize: 11.5 }}>{c.producto_o_servicio_dado}</div>}
+                        {concepto && (
+                          c.venta_id ? (
+                            <Link to={`/ventas?ver=${c.venta_id}`} className="link-venta" onClick={(e) => e.stopPropagation()} title={`Ver venta #${c.venta_id}`}>
+                              <Receipt size={11} /> {concepto}
+                            </Link>
+                          ) : <div className="muted" style={{ fontSize: 11.5 }}>{concepto}</div>
+                        )}
                       </td>
                       <td className="num tnum">{q(c.capital)}</td>
                       <td className="num tnum" style={{ fontWeight: 600, color: pagado ? 'var(--text-muted)' : undefined }}>{q(c.capital_restante)}</td>
@@ -159,8 +168,9 @@ export default function CreditosPage() {
                       </td>
                       <td className="muted" style={{ fontSize: 12 }}>{fmtFecha(c.fecha_credito)}</td>
                       <td><span className="badge" data-tone={badge.tone}><span className="b-dot" />{badge.label}</span></td>
-                      <td>
+                      <td onClick={(e) => e.stopPropagation()}>
                         <div className="row-actions">
+                          <button className="icon-action" data-variant="view" title="Ver detalle" onClick={() => navigate(`/creditos/${c.id}`)}><Eye /></button>
                           {!pagado && (
                             <button className="icon-action" data-variant="activate" title="Registrar pago" onClick={() => setPagar(c)}><Wallet /></button>
                           )}

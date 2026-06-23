@@ -14,3 +14,11 @@ export const fmtFecha = (iso: string | null | undefined, conHora = false): strin
     : { day: '2-digit', month: 'short', year: 'numeric' }
   return d.toLocaleDateString('es-GT', opts)
 }
+
+// Hora legible: "03:42 PM"
+export const fmtHora = (iso: string | null | undefined): string => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  return d.toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit', hour12: true })
+}

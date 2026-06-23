@@ -40,8 +40,16 @@ export interface Producto {
   categorias: ProductoCategoria[]
   imagenes: ImagenProducto[]
   notas_internas?: string | null
+  grupo_variante?: string | null
+  atributos?: ProductoAtributo[]
   created_at?: string | null
   updated_at?: string | null
+}
+
+export interface ProductoAtributo {
+  id?: number
+  nombre: string
+  valor: string
 }
 
 export interface ProductoFiltros {
@@ -51,6 +59,7 @@ export interface ProductoFiltros {
   proveedor_id?: number
   stock?: string
   sort?: string
+  grupo_variante?: string
   page?: number
   per_page?: number
 }

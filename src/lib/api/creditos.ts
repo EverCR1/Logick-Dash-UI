@@ -6,6 +6,10 @@ export const creditosApi = {
     const { data } = await apiClient.get<CreditosResponse>('/creditos', { params: filtros })
     return data
   },
+  obtener: async (id: number): Promise<Credito> => {
+    const { data } = await apiClient.get<{ success: boolean; credito: Credito }>(`/creditos/${id}`)
+    return data.credito
+  },
   crear: async (payload: CreditoPayload): Promise<Credito> => {
     const { data } = await apiClient.post<{ success: boolean; credito: Credito }>('/creditos', payload)
     return data.credito

@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { Check, ChevronDown, X } from 'lucide-react'
+import { Check, ChevronDown, X, Search } from 'lucide-react'
 
 export interface MultiOption {
   value: number
   label: string
+  /** Nivel jerárquico para sangría visual (0 = raíz) */
+  nivel?: number
 }
 
 interface MultiSelectProps {
@@ -11,21 +14,29 @@ interface MultiSelectProps {
   selected: number[]
   onChange: (selected: number[]) => void
   placeholder?: string
+  searchable?: boolean
+  searchPlaceholder?: string
 }
+
+const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
 /**
  * Selector múltiple con checkboxes (Radix DropdownMenu) estilado con el sistema.
  * Se mantiene abierto al marcar opciones (onSelect preventDefault).
  */
-export function MultiSelect({ options, selected, onChange, placeholder = 'Seleccionar…' }: MultiSelectProps) {
+export function MultiSelect({ options, selected, onChange, placeholder = 'Seleccionar…', searchable = false, searchPlaceholder = 'Buscar…' }: MultiSelectProps) {
+  const [query, setQuery] = useState('')
+
   const toggle = (value: number) => {
     onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value])
   }
 
   const chips = options.filter((o) => selected.includes(o.value))
+  const q = norm(query.trim())
+  const visibles = q ? options.filter((o) => norm(o.label).includes(q)) : options
 
   return (
-    <DropdownMenu.Root>
+    <DropdownMenu.Root onOpenChange={(o) => { if (!o) setQuery('') }}>
       <DropdownMenu.Trigger asChild>
         <button type="button" className="multi-trigger">
           {chips.length === 0 ? (
@@ -49,21 +60,35 @@ export function MultiSelect({ options, selected, onChange, placeholder = 'Selecc
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content className="multi-content" align="start" sideOffset={6}>
-          {options.length === 0 && <div className="multi-item" style={{ color: 'var(--text-faint)' }}>Sin opciones</div>}
-          {options.map((o) => {
-            const checked = selected.includes(o.value)
-            return (
-              <DropdownMenu.Item
-                key={o.value}
-                className="multi-item"
-                data-checked={checked}
-                onSelect={(e) => { e.preventDefault(); toggle(o.value) }}
-              >
-                <span className="box">{checked && <Check size={11} />}</span>
-                {o.label}
-              </DropdownMenu.Item>
-            )
-          })}
+          {searchable && (
+            <div className="multi-search" onKeyDown={(e) => e.stopPropagation()}>
+              <Search size={14} />
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={searchPlaceholder}
+              />
+            </div>
+          )}
+          <div className="multi-list">
+            {visibles.length === 0 && <div className="multi-item" style={{ color: 'var(--text-faint)' }}>{options.length === 0 ? 'Sin opciones' : 'Sin resultados'}</div>}
+            {visibles.map((o) => {
+              const checked = selected.includes(o.value)
+              return (
+                <DropdownMenu.Item
+                  key={o.value}
+                  className="multi-item"
+                  data-checked={checked}
+                  onSelect={(e) => { e.preventDefault(); toggle(o.value) }}
+                  style={o.nivel ? { paddingLeft: 10 + o.nivel * 16 } : undefined}
+                >
+                  <span className="box">{checked && <Check size={11} />}</span>
+                  {o.label}
+                </DropdownMenu.Item>
+              )
+            })}
+          </div>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>

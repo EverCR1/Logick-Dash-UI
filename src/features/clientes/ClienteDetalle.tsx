@@ -157,6 +157,7 @@ function KpiStrip({ est }: { est: ClienteEstadisticas }) {
 }
 
 function DetailTabs({ c, ventas }: { c: { email: string | null; telefono: string | null; direccion: string | null; notas: string | null }; ventas: ClienteVenta[] }) {
+  const navigate = useNavigate()
   const [tab, setTab] = useState<'resumen' | 'compras'>('resumen')
   const TABS = [
     { id: 'resumen' as const, label: 'Resumen' },
@@ -187,8 +188,8 @@ function DetailTabs({ c, ventas }: { c: { email: string | null; telefono: string
               {ventas.map((v) => {
                 const e = ESTADO_VENTA[v.estado] ?? { tone: 'warn' as const, label: v.estado }
                 return (
-                  <tr key={v.id}>
-                    <td style={{ fontWeight: 600 }}>{v.numero_venta}</td>
+                  <tr key={v.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/ventas?ver=${v.id}`)} title="Ver venta">
+                    <td style={{ fontWeight: 600, color: 'var(--info)' }}>{v.numero_venta}</td>
                     <td className="muted">{fmtFecha(v.created_at, true)}</td>
                     <td className="num tnum" style={{ fontWeight: 600 }}>{q(v.total)}</td>
                     <td><span className="badge" data-tone={e.tone}><span className="b-dot" />{e.label}</span></td>

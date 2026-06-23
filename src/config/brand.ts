@@ -5,4 +5,11 @@ export const brand = {
   tagline: 'Sistema de Gestión Empresarial',
   logo: '/logo.png',
   year: new Date().getFullYear(),
+  // Datos de la empresa para comprobantes (igual que el dashboard Blade)
+  empresa: {
+    razon: 'LOGICKEM - Variedades Tecnológicas',
+    direccion: '2da. Calle 6-41 zona 3, Rabinal B.V.',
+    whatsapp: '4710 4888',
+    lema: '¡Gracias por su preferencia!',
+  },
 }

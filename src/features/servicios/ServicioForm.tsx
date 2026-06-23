@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type ReactNode, type FormEvent } from 'react'
+import { useState, useEffect, useRef, useMemo, type ReactNode, type FormEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { toast } from 'sonner'
@@ -51,6 +51,14 @@ export function ServicioForm({ open, onClose, servicio }: {
   const quitarImagen = () => { setNuevaImg(null); if (fileRef.current) fileRef.current.value = '' }
 
   const set = (c: string, v: string) => { setForm((f) => ({ ...f, [c]: v })); setErrores((e) => ({ ...e, [c]: '' })) }
+
+  // Margen estimado: ((venta - inversión) / inversión) * 100
+  const margen = useMemo(() => {
+    const inv = parseFloat(form.inversion_estimada)
+    const v = parseFloat(form.precio_venta)
+    return inv > 0 && v > 0 ? ((v - inv) / inv) * 100 : null
+  }, [form.inversion_estimada, form.precio_venta])
+  const margenTono = margen == null ? undefined : margen >= 30 ? 'pos' : margen >= 15 ? 'warn' : 'neg'
 
   const guardar = useMutation({
     mutationFn: async () => {
@@ -110,9 +118,18 @@ export function ServicioForm({ open, onClose, servicio }: {
         <Campo label="Precio venta" req error={errores.precio_venta}>
           <input type="number" step="0.01" min="0" className="form-input" value={form.precio_venta} onChange={(e) => set('precio_venta', e.target.value)} aria-invalid={!!errores.precio_venta} />
         </Campo>
-        <Campo label="Precio oferta" error={errores.precio_oferta} col2>
+        <Campo label="Precio oferta" error={errores.precio_oferta}>
           <input type="number" step="0.01" min="0" className="form-input" value={form.precio_oferta} onChange={(e) => set('precio_oferta', e.target.value)} placeholder="Opcional" />
         </Campo>
+        <div className="form-field">
+          <label>Margen estimado</label>
+          <div className="margen-box">
+            {margen == null
+              ? <span className="muted">—</span>
+              : <span className="badge" data-tone={margenTono}><span className="b-dot" />{margen.toFixed(1)}%</span>}
+            <span className="muted" style={{ fontSize: 11.5 }}>sobre la inversión</span>
+          </div>
+        </div>
         <Campo label="Descripción" error={errores.descripcion} col2>
           <textarea className="form-textarea" value={form.descripcion} onChange={(e) => set('descripcion', e.target.value)} />
         </Campo>

@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { ImagenProducto, Producto, ProductoFiltros, ProductosResponse } from '@/types/producto'
+import type { ImagenProducto, Producto, ProductoAtributo, ProductoFiltros, ProductosResponse } from '@/types/producto'
 
 export interface ProductoPayload {
   sku: string
@@ -19,7 +19,9 @@ export interface ProductoPayload {
   ubicacion: string | null
   garantia: string | null
   notas_internas: string | null
+  grupo_variante: string | null
   categorias: number[]
+  atributos?: ProductoAtributo[]
 }
 
 export const productosApi = {
@@ -54,6 +56,12 @@ export const productosApi = {
   // Ajuste rápido de stock: actualización parcial (solo el campo stock)
   ajustarStock: async (id: number, stock: number): Promise<Producto> => {
     const { data } = await apiClient.put<{ success: boolean; producto: Producto }>(`/productos/${id}`, { stock })
+    return data.producto
+  },
+
+  // Vincular/desvincular del grupo de variantes (asigna o limpia grupo_variante)
+  vincularGrupo: async (id: number, grupo: string | null): Promise<Producto> => {
+    const { data } = await apiClient.put<{ success: boolean; producto: Producto }>(`/productos/${id}`, { grupo_variante: grupo ?? '' })
     return data.producto
   },
 

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Loader2, Eye, Ban, X } from 'lucide-react'
@@ -8,11 +9,10 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Pagination } from '@/components/ui/Pagination'
 import { DetalleVenta } from './DetalleVenta'
-import { NuevaVenta } from './NuevaVenta'
-import { ESTADO_VENTA, METODO_LABEL } from './venta-estados'
+import { ESTADO_VENTA, METODO_LABEL, METODO_TONE } from './venta-estados'
 import { ventasApi } from '@/lib/api'
 import { useDebounce } from '@/lib/hooks'
-import { q, fmtN, fmtFecha } from '@/lib/format'
+import { q, fmtN, fmtFecha, fmtHora } from '@/lib/format'
 import type { Venta, VentaFiltros } from '@/types/venta'
 
 const PER_PAGE = 15
@@ -25,9 +25,20 @@ export default function VentasPage() {
   const [metodo, setMetodo] = useState('todos')
   const [sort, setSort] = useState<VentaFiltros['sort']>('fecha_desc')
   const [page, setPage] = useState(1)
+  const navigate = useNavigate()
   const [verId, setVerId] = useState<number | null>(null)
   const [aCancelar, setACancelar] = useState<Venta | null>(null)
-  const [posOpen, setPosOpen] = useState(false)
+
+  // Permite abrir el detalle de una venta desde otros módulos vía /ventas?ver=ID
+  const [searchParams, setSearchParams] = useSearchParams()
+  useEffect(() => {
+    const ver = searchParams.get('ver')
+    if (ver) setVerId(Number(ver))
+  }, [searchParams])
+  const cerrarDetalle = () => {
+    setVerId(null)
+    if (searchParams.has('ver')) { searchParams.delete('ver'); setSearchParams(searchParams, { replace: true }) }
+  }
 
   const filtros: VentaFiltros = {
     search: searchDebounced || undefined,
@@ -57,7 +68,7 @@ export default function VentasPage() {
   return (
     <>
       <PageHeader title="Ventas" subtitle="Punto de venta y registro de ventas"
-        action={<button className="btn btn-primary" onClick={() => setPosOpen(true)}><I.Plus /> Nueva venta</button>} />
+        action={<button className="btn btn-primary" onClick={() => navigate('/ventas/nueva')}><I.Plus /> Nueva venta</button>} />
 
       {stats && (
         <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}>
@@ -138,15 +149,26 @@ export default function VentasPage() {
               <tbody>
                 {ventas.map((v, i) => {
                   const badge = ESTADO_VENTA[v.estado]
+                  const items = v.detalles ?? []
+                  const titulo = items.length
+                    ? items.slice(0, 6).map((d) => `${d.cantidad}× ${d.descripcion}`).join('\n') + (items.length > 6 ? `\n…y ${items.length - 6} más` : '')
+                    : ''
                   return (
                     <tr key={v.id} style={{ cursor: 'pointer' }} onClick={() => setVerId(v.id)}>
                       <td className="num muted tnum">{(meta?.from ?? 1) + i}</td>
                       <td style={{ fontWeight: 600, fontSize: 12 }}>{v.numero_venta}</td>
                       <td>{v.cliente?.nombre ?? <span className="muted">Consumidor final</span>}</td>
-                      <td className="num tnum muted">{v.detalles?.length ?? 0}</td>
+                      <td className="num">
+                        {items.length > 0
+                          ? <span className="badge" data-tone="info" title={titulo} style={{ cursor: 'help' }}><span className="b-dot" />{items.length} {items.length === 1 ? 'item' : 'items'}</span>
+                          : <span className="muted tnum">0</span>}
+                      </td>
                       <td className="num tnum" style={{ fontWeight: 600 }}>{q(v.total)}</td>
-                      <td className="muted" style={{ fontSize: 12 }}>{METODO_LABEL[v.metodo_pago] ?? v.metodo_pago}</td>
-                      <td className="muted" style={{ fontSize: 12 }}>{fmtFecha(v.created_at)}</td>
+                      <td><span className="badge" data-tone={METODO_TONE[v.metodo_pago]}><span className="b-dot" />{METODO_LABEL[v.metodo_pago] ?? v.metodo_pago}</span></td>
+                      <td>
+                        <div style={{ fontSize: 12, fontWeight: 500 }}>{fmtFecha(v.created_at)}</div>
+                        <div className="muted" style={{ fontSize: 11 }}>{fmtHora(v.created_at)}</div>
+                      </td>
                       <td><span className="badge" data-tone={badge.tone}><span className="b-dot" />{badge.label}</span></td>
                       <td onClick={(e) => e.stopPropagation()}>
                         <div className="row-actions">
@@ -166,8 +188,7 @@ export default function VentasPage() {
         )}
       </div>
 
-      <NuevaVenta open={posOpen} onClose={() => setPosOpen(false)} />
-      <DetalleVenta open={verId !== null} onClose={() => setVerId(null)} ventaId={verId} />
+      <DetalleVenta open={verId !== null} onClose={cerrarDetalle} ventaId={verId} />
 
       <ConfirmDialog open={!!aCancelar} onOpenChange={(o) => !o && setACancelar(null)}
         title="Cancelar venta" description={aCancelar ? `¿Cancelar la venta ${aCancelar.numero_venta}? Se revertirá el stock y el crédito asociado si existe.` : ''}

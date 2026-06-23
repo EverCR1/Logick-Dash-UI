@@ -29,8 +29,10 @@ const ReportesTiendaPage = lazy(() => import('@/features/reportes-tienda/Reporte
 const AuditoriaPage = lazy(() => import('@/features/auditoria/AuditoriaPage'))
 const ReportesPage = lazy(() => import('@/features/reportes/ReportesPage'))
 const CreditosPage = lazy(() => import('@/features/creditos/CreditosPage'))
+const CreditoDetalle = lazy(() => import('@/features/creditos/CreditoDetalle'))
 const PedidosPage = lazy(() => import('@/features/pedidos/PedidosPage'))
 const VentasPage = lazy(() => import('@/features/ventas/VentasPage'))
+const NuevaVenta = lazy(() => import('@/features/ventas/NuevaVenta'))
 
 // Aplana los items de navegación; el dashboard tiene su propia página, el resto
 // son placeholders hasta que construyamos cada módulo.
@@ -78,6 +80,8 @@ export default function App() {
           <Route path="/sucursales/:id" element={<Suspense fallback={<CargandoPagina />}><SucursalDetalle /></Suspense>} />
           <Route path="/productos/:id" element={<Suspense fallback={<CargandoPagina />}><ProductoDetalle /></Suspense>} />
           <Route path="/servicios/:id" element={<Suspense fallback={<CargandoPagina />}><ServicioDetalle /></Suspense>} />
+          <Route path="/creditos/:id" element={<Suspense fallback={<CargandoPagina />}><CreditoDetalle /></Suspense>} />
+          <Route path="/ventas/nueva" element={<Suspense fallback={<CargandoPagina />}><NuevaVenta /></Suspense>} />
           {items
             .filter((it) => it.to !== '/')
             .map((it) => {
