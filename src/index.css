@@ -1887,8 +1887,8 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
   background: var(--bg-elev-1); border: 1px solid var(--border); border-radius: 9px;
   box-shadow: 0 8px 24px rgba(0,0,0,.16); padding: 4px; max-height: 220px; overflow-y: auto;
 }
-.venta-dropdown-item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 10px; border-radius: 6px; font-size: 13px; color: var(--text); }
-.venta-dropdown-item:hover { background: var(--hover); }
+.venta-dropdown-item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 10px; border: 0; background: transparent; border-radius: 6px; font-size: 13px; color: var(--text); cursor: pointer; }
+.venta-dropdown-item:hover { background: var(--accent-soft); color: var(--accent-text); }
 
 /* Resultados de búsqueda de items (dropdown flotante para no empujar el carrito) */
 .venta-buscador { position: relative; }
