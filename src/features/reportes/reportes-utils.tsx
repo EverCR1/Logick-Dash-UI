@@ -1,16 +1,52 @@
 import { Loader2 } from 'lucide-react'
 import { I } from '@/components/icons'
+import { fmtN } from '@/lib/format'
+
+const iso = (d: Date) => d.toISOString().slice(0, 10)
 
 // Rango por defecto: inicio de mes → hoy
 export function rangoPorDefecto(): { desde: string; hasta: string } {
   const now = new Date()
-  const inicio = new Date(now.getFullYear(), now.getMonth(), 1)
-  const iso = (d: Date) => d.toISOString().slice(0, 10)
-  return { desde: iso(inicio), hasta: iso(now) }
+  return { desde: iso(new Date(now.getFullYear(), now.getMonth(), 1)), hasta: iso(now) }
+}
+
+export type Periodo = 'hoy' | 'semana' | 'mes' | 'personalizado'
+
+// Calcula el rango para un periodo rápido
+export function rangoDePeriodo(p: Exclude<Periodo, 'personalizado'>): { desde: string; hasta: string } {
+  const now = new Date()
+  const hasta = iso(now)
+  if (p === 'hoy') return { desde: hasta, hasta }
+  if (p === 'semana') {
+    const dia = (now.getDay() + 6) % 7 // lunes = 0
+    const inicio = new Date(now); inicio.setDate(now.getDate() - dia)
+    return { desde: iso(inicio), hasta }
+  }
+  return { desde: iso(new Date(now.getFullYear(), now.getMonth(), 1)), hasta } // mes
 }
 
 // Paleta para donuts / barras
 export const PALETA = ['#22c55e', '#3b82f6', '#8b5cf6', '#f59e0b', '#06b6d4', '#ec4899', '#ef4444', '#14b8a6']
+
+export type Tono = 'accent' | 'pos' | 'neg' | 'warn' | 'info' | 'violet'
+export interface KpiItem { label: string; value: string | number; icon: React.ComponentType; tone?: Tono; sub?: string; currency?: string }
+
+export function KpiStrip({ items }: { items: KpiItem[] }) {
+  return (
+    <div className="kpi-grid">
+      {items.map((k, i) => {
+        const IconC = k.icon
+        return (
+          <div key={i} className="kpi">
+            <div className="kpi-row1"><div className="kpi-label">{k.label}</div><div className="kpi-icon" data-tone={k.tone ?? 'accent'}><IconC /></div></div>
+            <div className="kpi-value tnum">{k.currency && <span className="currency">{k.currency}</span>}{typeof k.value === 'number' ? fmtN(k.value) : k.value}</div>
+            {k.sub && <div className="kpi-meta"><span>{k.sub}</span></div>}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 export function EstadoCarga({ isLoading, isError, vacio, refetch, children, icono: Icono = I.Activity }: {
   isLoading: boolean; isError: boolean; vacio: boolean

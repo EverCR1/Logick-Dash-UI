@@ -5,7 +5,7 @@ import { isAxiosError } from 'axios'
 import { toast } from 'sonner'
 import {
   Loader2, Plus, Minus, Trash2, X, Search, ShoppingCart, ChevronsLeft,
-  Banknote, CreditCard, Landmark, Shuffle, Clock, User, Receipt, Package, Boxes,
+  Banknote, CreditCard, Landmark, Shuffle, Clock, User, Receipt, Package, Boxes, AlertCircle,
 } from 'lucide-react'
 import { Select } from '@/components/ui/Select'
 import { CrearClienteRapido } from './CrearClienteRapido'
@@ -53,7 +53,6 @@ export default function NuevaVenta() {
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
   const [sucursalId, setSucursalId] = useState(() => usuario?.sucursal_id ? String(usuario.sucursal_id) : 'default')
   const [observaciones, setObservaciones] = useState('')
-  const [nombreCredito, setNombreCredito] = useState('')
   const [crearCliente, setCrearCliente] = useState(false)
 
   const { data: sucursales = [] } = useQuery({
@@ -128,7 +127,6 @@ export default function NuevaVenta() {
         items, cliente_id: cliente?.id ?? null, metodo_pago: metodo,
         sucursal_id: sucursalId !== 'default' ? Number(sucursalId) : null,
         observaciones: observaciones.trim() || null,
-        nombre_cliente_credito: metodo === 'credito' && !cliente ? (nombreCredito.trim() || null) : null,
       })
     },
     onSuccess: (venta) => {
@@ -149,7 +147,7 @@ export default function NuevaVenta() {
       if (c.precio_unitario < 0 || c.cantidad < 1) { toast.error('Revisa precios y cantidades'); return }
       if (c.descuento > c.precio_unitario * c.cantidad) { toast.error(`El descuento de "${c.descripcion}" supera su subtotal`); return }
     }
-    if (metodo === 'credito' && !cliente && !nombreCredito.trim()) { toast.error('Indica el nombre del cliente para el crédito'); return }
+    if (metodo === 'credito' && !cliente) { toast.error('Selecciona o crea un cliente arriba para registrar el crédito'); return }
     guardar.mutate()
   }
 
@@ -220,18 +218,18 @@ export default function NuevaVenta() {
                   options={[{ value: 'default', label: 'Mi sucursal (por defecto)' }, ...sucursales.map((s) => ({ value: String(s.id), label: s.nombre }))]} />
               </div>
 
-              {/* Nombre crédito */}
+              {/* Aviso crédito sin cliente: debe usarse el cliente de arriba */}
               {metodo === 'credito' && !cliente && (
-                <div className="form-field">
-                  <label>Nombre del cliente (crédito) <span className="req">*</span></label>
-                  <input className="form-input" value={nombreCredito} onChange={(e) => setNombreCredito(e.target.value)} placeholder="Para registrar el crédito" />
+                <div className="form-field col-2 venta-credito-aviso">
+                  <AlertCircle size={15} />
+                  <span>El crédito se registra a nombre del cliente. <b>Selecciona o crea un cliente</b> arriba.</span>
                 </div>
               )}
             </div>
           </div>
 
           {/* Productos y servicios */}
-          <div className="card">
+          <div className="card venta-card-prod">
             <div className="card-header" style={{ justifyContent: 'space-between' }}>
               <div className="card-title"><ShoppingCart size={15} style={{ color: 'var(--text-muted)' }} />Productos y servicios</div>
               {cart.length > 0 && <button className="btn btn-sm" onClick={() => setCart([])}><Trash2 size={13} /> Vaciar</button>}
@@ -293,7 +291,7 @@ export default function NuevaVenta() {
                         </td>
                         <td className="num">
                           <input className="form-input ta-r" type="number" min="0" step="0.01" value={c.precio_unitario}
-                            disabled={c.tipo !== 'otro'} onChange={(e) => actualizar(c.key, { precio_unitario: Number(e.target.value) })} />
+                            onChange={(e) => actualizar(c.key, { precio_unitario: Math.max(0, Number(e.target.value) || 0) })} />
                         </td>
                         <td>
                           <div className="qty-stepper">

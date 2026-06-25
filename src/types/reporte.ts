@@ -103,3 +103,57 @@ export interface GananciasResumen {
   margen_porcentaje: number
   items_vendidos: number
 }
+
+export interface GananciaGrupo {
+  nombre: string
+  ingresos: number
+  costos: number
+  ganancia: number
+  margen: number
+}
+
+export interface GananciasCatalogos {
+  sucursales: { id: number; nombre: string }[]
+  vendedores: { id: number; nombre: string }[]
+}
+
+export interface InventarioProducto {
+  id: number
+  sku: string
+  nombre: string
+  marca: string | null
+  stock: number
+  stock_minimo: number
+  precio_compra: number
+  precio_venta: number
+  proveedor: { id: number; nombre: string } | null
+  categorias: { id: number; nombre: string }[]
+}
+
+export interface SucursalesResumen {
+  total_sucursales: number
+  sucursales_activas: number
+  monto_total_global: number
+  transacciones_total: number
+  mejor_sucursal: string
+}
+
+// ── Tienda / pedidos ────────────────────────────────────────────────────────
+export interface PedidoReporte {
+  id: number
+  numero_pedido: string
+  total: number
+  metodo_pago: string | null
+  estado: string
+  created_at: string
+  cuenta: { id: number; nombre: string; apellido: string; email: string } | null
+}
+
+export interface TiendaResumen {
+  total_pedidos: number
+  monto_total: number
+  promedio: number
+  pedido_maximo: number
+  por_estado: Record<string, { cantidad: number; total: number }>
+  por_metodo_pago: Record<string, { cantidad: number; total: number }>
+}
