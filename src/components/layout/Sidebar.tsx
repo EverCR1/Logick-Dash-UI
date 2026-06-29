@@ -2,7 +2,8 @@ import { NavLink } from 'react-router-dom'
 import { I } from '@/components/icons'
 import { Logo } from '@/components/Logo'
 import { brand } from '@/config/brand'
-import { NAV, type NavItem } from '@/config/nav'
+import { NAV, puedeVer, type NavItem } from '@/config/nav'
+import { useAuth } from '@/lib/auth'
 
 function NavItemLink({ it }: { it: NavItem }) {
   const IconC = I[it.icon]
@@ -21,6 +22,9 @@ function NavItemLink({ it }: { it: NavItem }) {
 }
 
 export default function Sidebar({ onToggle }: { onToggle: () => void }) {
+  const { usuario } = useAuth()
+  const rol = usuario?.rol
+
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
@@ -33,16 +37,18 @@ export default function Sidebar({ onToggle }: { onToggle: () => void }) {
       <nav className="sidebar-nav">
         {NAV.map((entry, i) => {
           if ('type' in entry) {
+            const items = entry.items.filter((it) => puedeVer(it, rol))
+            if (items.length === 0) return null
             return (
               <div key={i} className="nav-group">
                 <div className="nav-group-label">{entry.label}</div>
-                {entry.items.map((it) => (
+                {items.map((it) => (
                   <NavItemLink key={it.to} it={it} />
                 ))}
               </div>
             )
           }
-          return <NavItemLink key={entry.to} it={entry} />
+          return puedeVer(entry, rol) ? <NavItemLink key={entry.to} it={entry} /> : null
         })}
       </nav>
       <div className="sidebar-footer">Logickem © 2026</div>

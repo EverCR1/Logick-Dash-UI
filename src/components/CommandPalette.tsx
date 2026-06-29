@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Search } from 'lucide-react'
 import { I, type IconName } from '@/components/icons'
-import { NAV } from '@/config/nav'
+import { NAV, puedeVer } from '@/config/nav'
+import { useAuth } from '@/lib/auth'
 
 interface Entrada {
   to: string
@@ -12,30 +13,38 @@ interface Entrada {
   grupo: string
 }
 
-// Aplana la navegación en una lista buscable con su grupo de origen
-const ENTRADAS: Entrada[] = NAV.flatMap((e) =>
-  'type' in e
-    ? e.items.map((it) => ({ to: it.to, label: it.label, icon: it.icon, grupo: e.label }))
-    : [{ to: e.to, label: e.label, icon: e.icon, grupo: 'General' }],
-)
-
 function normaliza(s: string): string {
   return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 }
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const navigate = useNavigate()
+  const { usuario } = useAuth()
+  const rol = usuario?.rol
   const [query, setQuery] = useState('')
   const [activo, setActivo] = useState(0)
   const listaRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { if (open) { setQuery(''); setActivo(0) } }, [open])
 
+  // Aplana la navegación visible para el rol en una lista buscable con su grupo de origen
+  const entradas = useMemo<Entrada[]>(
+    () =>
+      NAV.flatMap((e) =>
+        'type' in e
+          ? e.items.filter((it) => puedeVer(it, rol)).map((it) => ({ to: it.to, label: it.label, icon: it.icon, grupo: e.label }))
+          : puedeVer(e, rol)
+            ? [{ to: e.to, label: e.label, icon: e.icon, grupo: 'General' }]
+            : [],
+      ),
+    [rol],
+  )
+
   const resultados = useMemo(() => {
     const q = normaliza(query.trim())
-    if (!q) return ENTRADAS
-    return ENTRADAS.filter((e) => normaliza(e.label).includes(q) || normaliza(e.grupo).includes(q))
-  }, [query])
+    if (!q) return entradas
+    return entradas.filter((e) => normaliza(e.label).includes(q) || normaliza(e.grupo).includes(q))
+  }, [query, entradas])
 
   useEffect(() => { setActivo(0) }, [query])
 
