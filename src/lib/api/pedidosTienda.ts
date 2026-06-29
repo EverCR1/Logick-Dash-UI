@@ -5,7 +5,7 @@ const BASE = '/pedidos-tienda'
 
 export const pedidosTiendaApi = {
   listar: async (filtros: PedidoFiltros = {}): Promise<PedidosResponse> => {
-    const { data } = await apiClient.get<PedidosResponse>(`${BASE}/`, { params: filtros })
+    const { data } = await apiClient.get<PedidosResponse>(BASE, { params: filtros })
     return data
   },
   obtener: async (id: number): Promise<Pedido> => {
