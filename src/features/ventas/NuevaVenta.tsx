@@ -350,23 +350,26 @@ export default function NuevaVenta() {
                   <div className="pos-lines">
                     {cart.map((c) => (
                       <div key={c.key} className="pos-line">
-                        <div className="pos-line-main">
+                        <div className="pos-line-name-area">
                           {c.tipo === 'otro'
                             ? <input className="form-input" style={{ height: 30, fontSize: 12.5 }} placeholder="Descripción" value={c.descripcion} onChange={(e) => actualizar(c.key, { descripcion: e.target.value })} />
                             : <div className="pos-line-name">{c.descripcion}</div>}
-                          <div className="pos-line-price">
-                            Q <input className="pos-price-input" type="number" min="0" step="0.01" value={c.precio_unitario}
-                              onChange={(e) => actualizar(c.key, { precio_unitario: Math.max(0, Number(e.target.value) || 0) })} /> c/u
-                          </div>
                         </div>
-                        <div className="qty-stepper">
-                          <button type="button" onClick={() => cambiarCantidad(c, -1)} disabled={c.cantidad <= 1}><Minus size={13} /></button>
-                          <input type="number" min="1" max={c.stock} value={c.cantidad}
-                            onChange={(e) => { let n = Math.max(1, Math.floor(Number(e.target.value) || 1)); if (c.stock != null && n > c.stock) { n = c.stock; toast.error(`Stock máximo: ${c.stock}`) } actualizar(c.key, { cantidad: n }) }} />
-                          <button type="button" onClick={() => cambiarCantidad(c, 1)}><Plus size={13} /></button>
+                        <div className="pos-line-price-area">
+                          Q <input className="pos-price-input" type="number" min="0" step="0.01" value={c.precio_unitario}
+                            onChange={(e) => actualizar(c.key, { precio_unitario: Math.max(0, Number(e.target.value) || 0) })} />
+                          <span className="pos-line-cu">c/u</span>
                         </div>
-                        <div className="pos-line-total tnum">{q(c.precio_unitario * c.cantidad)}</div>
                         <button className="pos-line-del" title="Quitar" onClick={() => quitar(c.key)}><X size={14} /></button>
+                        <div className="pos-line-qty-area">
+                          <div className="qty-stepper">
+                            <button type="button" onClick={() => cambiarCantidad(c, -1)} disabled={c.cantidad <= 1}><Minus size={13} /></button>
+                            <input type="number" min="1" max={c.stock} value={c.cantidad}
+                              onChange={(e) => { let n = Math.max(1, Math.floor(Number(e.target.value) || 1)); if (c.stock != null && n > c.stock) { n = c.stock; toast.error(`Stock máximo: ${c.stock}`) } actualizar(c.key, { cantidad: n }) }} />
+                            <button type="button" onClick={() => cambiarCantidad(c, 1)}><Plus size={13} /></button>
+                          </div>
+                          {c.cantidad > 1 && <span className="pos-line-sub tnum">{q(c.precio_unitario * c.cantidad)}</span>}
+                        </div>
                       </div>
                     ))}
                   </div>

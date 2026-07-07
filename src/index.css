@@ -1883,15 +1883,18 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
 .pos-lines { display: grid; gap: 8px; max-height: 40vh; overflow-y: auto; }
 .pos-line {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
+  grid-template-columns: 1fr auto auto;
+  grid-template-areas:
+    "name  price del"
+    "qty   qty   qty";
   align-items: center;
-  gap: 8px;
-  padding: 8px;
+  gap: 6px 8px;
+  padding: 10px;
   border: 1px solid var(--border);
   border-radius: 9px;
   background: var(--bg-elev-1);
 }
-.pos-line-main { min-width: 0; }
+.pos-line-name-area { grid-area: name; min-width: 0; }
 .pos-line-name {
   font-weight: 600;
   font-size: 12.5px;
@@ -1900,14 +1903,15 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.pos-line-price {
-  font-size: 11.5px;
-  color: var(--text-faint);
+.pos-line-price-area {
+  grid-area: price;
   display: flex;
   align-items: center;
-  gap: 3px;
-  margin-top: 3px;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-faint);
 }
+.pos-line-cu { font-size: 11px; color: var(--text-faint); }
 .pos-price-input {
   width: 86px;
   height: 30px;
@@ -1921,8 +1925,21 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
   text-align: right;
 }
 .pos-price-input:focus { outline: none; border-color: var(--accent); }
-.pos-line-total { font-weight: 600; font-size: 12.5px; white-space: nowrap; }
+.pos-line-qty-area {
+  grid-area: qty;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+/* Stepper más compacto dentro del ticket */
+.pos-line-qty-area .qty-stepper button { width: 24px; height: 26px; }
+.pos-line-qty-area .qty-stepper button svg { width: 12px; height: 12px; }
+.pos-line-qty-area .qty-stepper input { width: 34px; height: 26px; font-size: 12px; }
+.pos-line-sub { font-weight: 600; font-size: 13px; white-space: nowrap; }
 .pos-line-del {
+  grid-area: del;
+  align-self: center;
   width: 24px; height: 24px;
   border: 0; background: transparent;
   color: var(--text-faint);
