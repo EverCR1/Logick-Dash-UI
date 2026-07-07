@@ -114,10 +114,14 @@ export function AreaChart({ data, height = 240, accent = 'var(--accent)', second
   const onMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const svg = svgRef.current
     if (!svg) return
-    const rect = svg.getBoundingClientRect()
-    const x = ((e.clientX - rect.left) / rect.width) * W
-    const i = Math.round(((x - padL) / innerW) * (data.length - 1))
-    if (i >= 0 && i < data.length) setHover(i)
+    // Convertir la posición del mouse a coordenadas reales del viewBox usando la
+    // matriz del SVG. Así se respeta el escalado/centrado (preserveAspectRatio) y
+    // el índice detectado coincide exactamente con el punto bajo el cursor.
+    const ctm = svg.getScreenCTM()
+    if (!ctm) return
+    const loc = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse())
+    const i = Math.round(((loc.x - padL) / innerW) * (data.length - 1))
+    setHover(Math.max(0, Math.min(data.length - 1, i)))
   }
 
   return (

@@ -17,12 +17,12 @@ export const ventasApi = {
   cancelar: async (id: number): Promise<void> => {
     await apiClient.post(`/ventas/${id}/cancelar`)
   },
-  buscarProductos: async (query: string): Promise<ResultadoBusqueda[]> => {
-    const { data } = await apiClient.get<{ success: boolean; productos: ResultadoBusqueda[] }>('/ventas/buscar/productos', { params: { query, limit: 12 } })
+  buscarProductos: async (query: string, limit = 12): Promise<ResultadoBusqueda[]> => {
+    const { data } = await apiClient.get<{ success: boolean; productos: ResultadoBusqueda[] }>('/ventas/buscar/productos', { params: { query, limit } })
     return data.productos
   },
-  buscarServicios: async (query: string): Promise<ResultadoBusqueda[]> => {
-    const { data } = await apiClient.get<{ success: boolean; servicios: ResultadoBusqueda[] }>('/ventas/buscar/servicios', { params: { query, limit: 12 } })
+  buscarServicios: async (query: string, limit = 12): Promise<ResultadoBusqueda[]> => {
+    const { data } = await apiClient.get<{ success: boolean; servicios: ResultadoBusqueda[] }>('/ventas/buscar/servicios', { params: { query, limit } })
     return data.servicios
   },
   buscarClientes: async (query: string): Promise<ClienteBusqueda[]> => {

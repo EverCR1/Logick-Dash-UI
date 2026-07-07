@@ -49,7 +49,7 @@ function HeroBanner() {
       </div>
       <div className="hero-actions">
         <button className="btn"><I.Refresh /> Actualizar</button>
-        <Link to="/ventas" className="btn btn-primary"><I.Plus /> Nueva venta</Link>
+        <Link to="/ventas/nueva" className="btn btn-primary"><I.Plus /> Nueva venta</Link>
       </div>
     </div>
   )
