@@ -80,6 +80,9 @@ export interface ResultadoBusqueda {
   marca?: string | null
   stock?: number
   imagen?: string | null
+  ubicacion?: string | null
+  precio_regular?: number
+  en_oferta?: boolean
 }
 
 export interface ClienteBusqueda {

@@ -5,7 +5,7 @@ import { isAxiosError } from 'axios'
 import { toast } from 'sonner'
 import {
   Loader2, Plus, Minus, Trash2, X, Search, ShoppingCart, ChevronsLeft, ChevronUp,
-  Banknote, CreditCard, Landmark, Shuffle, Clock, User, Receipt, Package, Boxes, AlertCircle,
+  Banknote, CreditCard, Landmark, Shuffle, Clock, User, Receipt, Package, Boxes, AlertCircle, MapPin,
 } from 'lucide-react'
 import { Select } from '@/components/ui/Select'
 import { Pagination } from '@/components/ui/Pagination'
@@ -290,19 +290,27 @@ export default function NuevaVenta() {
                 <div className="pos-grid">
                   {catalogoPagina.map((r) => {
                     const cant = cantEnCarrito(r)
+                    const dscto = r.en_oferta && r.precio_regular ? Math.round((1 - r.precio / r.precio_regular) * 100) : 0
                     return (
-                      <button key={`${r.tipo}-${r.id}`} type="button" className="pos-card" data-on={cant > 0} onClick={() => agregar(r)} title={r.nombre}>
+                      <button key={`${r.tipo}-${r.id}`} type="button" className="pos-card" data-tipo={r.tipo} data-on={cant > 0} onClick={() => agregar(r)} title={r.nombre}>
                         {cant > 0 && <span className="pos-card-badge">{cant}</span>}
+                        {dscto > 0 && <span className="pos-card-oferta">-{dscto}%</span>}
                         <span className="pos-card-icon">
                           {r.imagen ? <img src={r.imagen} alt="" /> : (r.tipo === 'producto' ? <Package size={18} /> : <Boxes size={18} />)}
                         </span>
                         <div className="pos-card-name">{r.nombre}</div>
+                        <div className="pos-card-tags">
+                          <span className="pos-tag" data-tipo={r.tipo}>{r.tipo === 'producto' ? 'Producto' : 'Servicio'}</span>
+                          {r.tipo === 'producto' && r.stock != null && <span className="pos-tag pos-tag-stock">stock {r.stock}</span>}
+                        </div>
                         <div className="pos-card-meta">
                           <span className="mono">{r.sku ?? r.codigo}</span>
-                          {r.tipo === 'producto' && r.stock != null && <span className="pos-card-stock"> · stock {r.stock}</span>}
-                          {r.tipo === 'servicio' && <span className="badge" data-tone="violet" style={{ marginLeft: 4 }}>Servicio</span>}
+                          {r.ubicacion && <span className="pos-card-ubic"><MapPin size={11} /> {r.ubicacion}</span>}
                         </div>
-                        <div className="pos-card-price">{q(r.precio)}</div>
+                        <div className="pos-card-precio">
+                          {dscto > 0 && r.precio_regular && <span className="pos-card-precio-old">{q(r.precio_regular)}</span>}
+                          <span className="pos-card-price">{q(r.precio)}</span>
+                        </div>
                       </button>
                     )
                   })}
