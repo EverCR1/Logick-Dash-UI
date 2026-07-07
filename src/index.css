@@ -1812,7 +1812,7 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
 }
 .pos-tag[data-tipo="producto"] { background: var(--info-soft); color: var(--info); }
 .pos-tag[data-tipo="servicio"] { background: var(--violet-soft); color: var(--violet); }
-.pos-tag-stock { background: var(--bg-elev-2); color: var(--text-muted); text-transform: none; font-weight: 600; }
+.pos-tag-stock { background: var(--pos-soft); color: var(--pos); text-transform: none; font-weight: 600; }
 .pos-card-meta {
   font-size: 10.5px;
   color: var(--text-faint);
@@ -1825,7 +1825,8 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  color: var(--text-muted);
+  color: var(--warn);
+  font-weight: 600;
 }
 .pos-card-precio {
   margin-top: auto;
