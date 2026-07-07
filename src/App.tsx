@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import AppLayout from '@/components/layout/AppLayout'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import RoleGuard from '@/components/RoleGuard'
 import LoginPage from '@/features/auth/LoginPage'
 import PlaceholderPage from '@/components/PlaceholderPage'
 import { NAV, type NavItem } from '@/config/nav'
@@ -73,31 +74,37 @@ export default function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
+          {/* El dashboard es visible para todos los roles */}
           <Route index element={<Suspense fallback={<CargandoPagina />}><DashboardPage /></Suspense>} />
-          <Route path="/usuarios/:id" element={<Suspense fallback={<CargandoPagina />}><UsuarioDetalle /></Suspense>} />
-          <Route path="/clientes/:id" element={<Suspense fallback={<CargandoPagina />}><ClienteDetalle /></Suspense>} />
-          <Route path="/proveedores/:id" element={<Suspense fallback={<CargandoPagina />}><ProveedorDetalle /></Suspense>} />
-          <Route path="/sucursales/:id" element={<Suspense fallback={<CargandoPagina />}><SucursalDetalle /></Suspense>} />
-          <Route path="/productos/:id" element={<Suspense fallback={<CargandoPagina />}><ProductoDetalle /></Suspense>} />
-          <Route path="/servicios/:id" element={<Suspense fallback={<CargandoPagina />}><ServicioDetalle /></Suspense>} />
-          <Route path="/creditos/:id" element={<Suspense fallback={<CargandoPagina />}><CreditoDetalle /></Suspense>} />
-          <Route path="/ventas/nueva" element={<Suspense fallback={<CargandoPagina />}><NuevaVenta /></Suspense>} />
-          {items
-            .filter((it) => it.to !== '/')
-            .map((it) => {
-              const Pagina = PAGINAS[it.to]
-              return (
-                <Route
-                  key={it.to}
-                  path={it.to}
-                  element={
-                    Pagina
-                      ? <Suspense fallback={<CargandoPagina />}><Pagina /></Suspense>
-                      : <PlaceholderPage title={it.label} icon={it.icon} />
-                  }
-                />
-              )
-            })}
+
+          {/* RoleGuard aplica el control por rol (mismo mapa que el sidebar) a
+              todos los módulos y sus rutas de detalle */}
+          <Route element={<RoleGuard />}>
+            <Route path="/usuarios/:id" element={<Suspense fallback={<CargandoPagina />}><UsuarioDetalle /></Suspense>} />
+            <Route path="/clientes/:id" element={<Suspense fallback={<CargandoPagina />}><ClienteDetalle /></Suspense>} />
+            <Route path="/proveedores/:id" element={<Suspense fallback={<CargandoPagina />}><ProveedorDetalle /></Suspense>} />
+            <Route path="/sucursales/:id" element={<Suspense fallback={<CargandoPagina />}><SucursalDetalle /></Suspense>} />
+            <Route path="/productos/:id" element={<Suspense fallback={<CargandoPagina />}><ProductoDetalle /></Suspense>} />
+            <Route path="/servicios/:id" element={<Suspense fallback={<CargandoPagina />}><ServicioDetalle /></Suspense>} />
+            <Route path="/creditos/:id" element={<Suspense fallback={<CargandoPagina />}><CreditoDetalle /></Suspense>} />
+            <Route path="/ventas/nueva" element={<Suspense fallback={<CargandoPagina />}><NuevaVenta /></Suspense>} />
+            {items
+              .filter((it) => it.to !== '/')
+              .map((it) => {
+                const Pagina = PAGINAS[it.to]
+                return (
+                  <Route
+                    key={it.to}
+                    path={it.to}
+                    element={
+                      Pagina
+                        ? <Suspense fallback={<CargandoPagina />}><Pagina /></Suspense>
+                        : <PlaceholderPage title={it.label} icon={it.icon} />
+                    }
+                  />
+                )
+              })}
+          </Route>
         </Route>
       </Route>
     </Routes>

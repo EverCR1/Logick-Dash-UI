@@ -78,6 +78,33 @@ export function puedeVer(it: NavItem, rol: Rol | undefined): boolean {
   return rol != null && it.roles.includes(rol)
 }
 
+// Todos los items de navegación aplanados (sin grupos), para resolución de rutas.
+const NAV_ITEMS: NavItem[] = NAV.flatMap((e) => ('type' in e ? e.items : [e]))
+
+/**
+ * Roles requeridos para una ruta. Empareja el item de nav cuyo `to` sea prefijo
+ * del path (el más específico gana), de modo que las rutas de detalle heredan los
+ * roles de su módulo (p. ej. `/usuarios/5` → roles de `/usuarios`).
+ * Devuelve `undefined` cuando la ruta no tiene restricción de rol.
+ */
+export function rolesDeRuta(pathname: string): Rol[] | undefined {
+  let match: NavItem | undefined
+  for (const it of NAV_ITEMS) {
+    if (it.to === '/') continue // el dashboard es visible para todos
+    if (pathname === it.to || pathname.startsWith(it.to + '/')) {
+      if (!match || it.to.length > match.to.length) match = it
+    }
+  }
+  return match?.roles
+}
+
+/** Conveniencia: ¿el rol puede acceder a la ruta dada? */
+export function puedeAcceder(pathname: string, rol: Rol | undefined): boolean {
+  const roles = rolesDeRuta(pathname)
+  if (!roles) return true
+  return rol != null && roles.includes(rol)
+}
+
 // Título mostrado en el breadcrumb por ruta
 export const NAV_TITLES: Record<string, string> = {
   '/': 'Dashboard',
