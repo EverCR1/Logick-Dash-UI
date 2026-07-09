@@ -368,7 +368,11 @@ export default function NuevaVenta() {
                               onChange={(e) => { let n = Math.max(1, Math.floor(Number(e.target.value) || 1)); if (c.stock != null && n > c.stock) { n = c.stock; toast.error(`Stock máximo: ${c.stock}`) } actualizar(c.key, { cantidad: n }) }} />
                             <button type="button" onClick={() => cambiarCantidad(c, 1)}><Plus size={13} /></button>
                           </div>
-                          {c.cantidad > 1 && <span className="pos-line-sub tnum">{q(c.precio_unitario * c.cantidad)}</span>}
+                          <label className="pos-line-dcto">Dcto Q
+                            <input className="pos-dcto-input" type="number" min="0" step="0.01" value={c.descuento}
+                              onChange={(e) => actualizar(c.key, { descuento: Math.max(0, Number(e.target.value) || 0) })} />
+                          </label>
+                          {(c.cantidad > 1 || c.descuento > 0) && <span className="pos-line-sub tnum">{q(c.precio_unitario * c.cantidad - (c.descuento || 0))}</span>}
                         </div>
                       </div>
                     ))}

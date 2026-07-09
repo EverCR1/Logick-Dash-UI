@@ -1929,14 +1929,36 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
   grid-area: qty;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
 }
 /* Stepper más compacto dentro del ticket */
 .pos-line-qty-area .qty-stepper button { width: 24px; height: 26px; }
 .pos-line-qty-area .qty-stepper button svg { width: 12px; height: 12px; }
 .pos-line-qty-area .qty-stepper input { width: 34px; height: 26px; font-size: 12px; }
-.pos-line-sub { font-weight: 600; font-size: 13px; white-space: nowrap; }
+.pos-line-dcto {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.pos-dcto-input {
+  width: 60px;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  text-align: right;
+}
+.pos-dcto-input:focus { outline: none; border-color: var(--accent); }
+.pos-price-input::-webkit-outer-spin-button, .pos-price-input::-webkit-inner-spin-button,
+.pos-dcto-input::-webkit-outer-spin-button, .pos-dcto-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.pos-price-input, .pos-dcto-input { -moz-appearance: textfield; appearance: textfield; }
+.pos-line-sub { margin-left: auto; font-weight: 600; font-size: 13px; white-space: nowrap; }
 .pos-line-del {
   grid-area: del;
   align-self: center;
