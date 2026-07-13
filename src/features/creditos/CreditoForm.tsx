@@ -5,10 +5,11 @@ import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { creditosApi } from '@/lib/api'
+import { fechaLocal } from '@/lib/format'
 import type { Credito } from '@/types/credito'
 
 type FormState = Record<string, string>
-const hoy = () => new Date().toISOString().slice(0, 10)
+const hoy = () => fechaLocal()
 const VACIO: FormState = { nombre_cliente: '', capital: '', producto_o_servicio_dado: '', fecha_credito: hoy(), capital_restante: '' }
 
 export function CreditoForm({ open, onClose, credito }: { open: boolean; onClose: () => void; credito: Credito | null }) {

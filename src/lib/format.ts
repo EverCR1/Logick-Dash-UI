@@ -1,5 +1,14 @@
 export const q = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
+// Fecha YYYY-MM-DD en hora LOCAL del navegador. NO usar toISOString() (da UTC y
+// en zonas al oeste, p. ej. Guatemala UTC−6, por la noche adelanta al día siguiente).
+export const fechaLocal = (d: Date = new Date()): string => {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 export const fmtN = (n: number) => Number(n).toLocaleString('es-GT')
 
 export const pct = (n: number) => `${Math.round(n)}%`

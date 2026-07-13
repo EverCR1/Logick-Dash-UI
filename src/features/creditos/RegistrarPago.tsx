@@ -5,10 +5,10 @@ import { toast } from 'sonner'
 import { Loader2, HandCoins, CheckCircle2 } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { creditosApi } from '@/lib/api'
-import { q, fmtFecha } from '@/lib/format'
+import { q, fmtFecha, fechaLocal } from '@/lib/format'
 import type { Credito, PagoTipo } from '@/types/credito'
 
-const hoy = () => new Date().toISOString().slice(0, 10)
+const hoy = () => fechaLocal()
 const round2 = (n: number) => Math.round(n * 100) / 100
 
 export function RegistrarPago({ open, onClose, credito }: { open: boolean; onClose: () => void; credito: Credito | null }) {
