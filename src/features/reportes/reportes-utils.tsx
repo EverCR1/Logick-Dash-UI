@@ -2,7 +2,14 @@ import { Loader2 } from 'lucide-react'
 import { I } from '@/components/icons'
 import { fmtN } from '@/lib/format'
 
-const iso = (d: Date) => d.toISOString().slice(0, 10)
+// Fecha YYYY-MM-DD en hora LOCAL. Usar toISOString() daría UTC y, en zonas al oeste
+// (Guatemala UTC−6), por la tarde/noche adelantaría al día siguiente.
+const iso = (d: Date) => {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
 // Rango por defecto: inicio de mes → hoy
 export function rangoPorDefecto(): { desde: string; hasta: string } {

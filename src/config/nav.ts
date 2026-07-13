@@ -58,7 +58,7 @@ export const NAV: NavEntry[] = [
       { to: '/pedidos', label: 'Pedidos', icon: 'Store', roles: GESTION_OPERACIONES },
       { to: '/resenas', label: 'Reseñas', icon: 'Star', roles: GESTION_OPERACIONES },
       { to: '/preguntas', label: 'Preguntas', icon: 'Help', roles: GESTION_OPERACIONES },
-      { to: '/reportes-tienda', label: 'Reportes', icon: 'Flag', roles: GESTION_OPERACIONES },
+      { to: '/reportes-tienda', label: 'Problemas', icon: 'AlertCircle', roles: GESTION_OPERACIONES },
       { to: '/cupones', label: 'Cupones', icon: 'Ticket', roles: ['administrador'] },
     ],
   },
