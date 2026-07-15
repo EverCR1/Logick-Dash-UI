@@ -37,7 +37,7 @@ export default function ProductosPage() {
 
   // Vista tabla usa PER_PAGE fijo (las filas ocupan todo el ancho, sin huecos).
   // Vista cards calcula cuántas caben según el ancho real, para llenar la página.
-  const { ref: cardsRef, perPage: autoPerPage } = useAutoPageSize({ minCol: 220, rows: 4 })
+  const { ref: cardsRef, perPage: autoPerPage } = useAutoPageSize({ rows: 4 })
   const perPage = vista === 'cards' ? autoPerPage : PER_PAGE
 
   const abrirNuevo = () => { setProductoEditar(null); setFormOpen(true) }

@@ -41,7 +41,7 @@ export default function ServiciosPage() {
   const [editar, setEditar] = useState<Servicio | null>(null)
   const [zoom, setZoom] = useState<string | null>(null)
 
-  const { ref: cardsRef, perPage: autoPerPage } = useAutoPageSize({ minCol: 220, rows: 4 })
+  const { ref: cardsRef, perPage: autoPerPage } = useAutoPageSize({ rows: 4 })
   const perPage = vista === 'cards' ? autoPerPage : PER_PAGE
 
   useEffect(() => { localStorage.setItem('servicios_vista', vista) }, [vista])

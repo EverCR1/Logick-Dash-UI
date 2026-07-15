@@ -13,14 +13,21 @@ export function useDebounce<T>(value: T, delay = 350): T {
 
 /**
  * Calcula cuántos ítems caben por página en un grid de cards responsivo, para que
- * la página siempre llene el ancho disponible (mismas columnas que produce el CSS
- * `repeat(auto-fill, minmax(minCol, 1fr))`) en vez de un `per_page` fijo que deja
- * huecos o corta filas a la mitad.
+ * la página siempre llene el ancho disponible en vez de un `per_page` fijo que
+ * deja huecos o corta filas a la mitad.
  *
- * Uso: `const { ref, perPage } = useAutoPageSize({ minCol: 220, rows: 4 })`
- * y pasar `ref` al contenedor del grid (el mismo que tiene la clase con ese grid-template-columns).
+ * No recalcula las columnas "a mano" (con un ancho mínimo pasado por parámetro):
+ * eso obligaría a mantener ese número sincronizado con el CSS, y se desincroniza
+ * en cuanto un media query cambia el `minmax()` en un breakpoint (p. ej. móvil).
+ * En vez de eso, lee cuántas columnas resolvió el propio grid vía
+ * `getComputedStyle(...).gridTemplateColumns` — funciona con cualquier
+ * `repeat(auto-fill, minmax(...))` sea cual sea su valor, en cualquier breakpoint,
+ * sin duplicar ese número en JS.
+ *
+ * Uso: `const { ref, perPage } = useAutoPageSize({ rows: 4 })`
+ * y pasar `ref` al contenedor del grid.
  */
-export function useAutoPageSize({ minCol, rows = 4 }: { minCol: number; rows?: number }) {
+export function useAutoPageSize({ rows = 4 }: { rows?: number } = {}) {
   // El contenedor solo existe en el DOM una vez que termina de cargar (isLoading
   // pasa a false); con un useRef normal + efecto de deps fijas, ese efecto corre
   // una sola vez ANTES de que el nodo exista y nunca vuelve a intentarlo. Un ref
@@ -38,11 +45,10 @@ export function useAutoPageSize({ minCol, rows = 4 }: { minCol: number; rows?: n
 
     let frame = 0
     const calcular = () => {
-      const width = node.clientWidth
-      if (width <= 0) return
-      // Lee el gap real del grid (respeta --gap-grid / data-density) en vez de asumirlo
-      const gap = parseFloat(getComputedStyle(node).columnGap) || 0
-      const cols = Math.max(1, Math.floor((width + gap) / (minCol + gap)))
+      // `auto-fill` resuelve el nº de columnas según el ancho disponible aunque el
+      // grid esté vacío, así que este conteo es exacto y siempre coincide con lo
+      // que el usuario ve, sin importar qué breakpoint/minmax esté activo.
+      const cols = getComputedStyle(node).gridTemplateColumns.split(' ').filter(Boolean).length || 1
       const siguiente = cols * rows
       setPerPage((prev) => (prev === siguiente ? prev : siguiente))
     }
@@ -54,7 +60,7 @@ export function useAutoPageSize({ minCol, rows = 4 }: { minCol: number; rows?: n
     })
     ro.observe(node)
     return () => { ro.disconnect(); cancelAnimationFrame(frame) }
-  }, [node, minCol, rows])
+  }, [node, rows])
 
   return { ref, perPage }
 }

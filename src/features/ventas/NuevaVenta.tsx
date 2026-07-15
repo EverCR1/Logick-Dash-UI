@@ -119,7 +119,7 @@ export default function NuevaVenta() {
   const cargandoCatalogo = (catProductos.isLoading || catServicios.isLoading) && catalogo.length === 0
   const errorCatalogo = catProductos.isError || catServicios.isError
   const recargarCatalogo = () => { catProductos.refetch(); catServicios.refetch() }
-  const { ref: catGridRef, perPage: autoPerPage } = useAutoPageSize({ minCol: 176, rows: 4 })
+  const { ref: catGridRef, perPage: autoPerPage } = useAutoPageSize({ rows: 4 })
   const { slice: catalogoPagina, meta, page, setPage } = usePaginacionLocal(catalogo, autoPerPage)
 
   // ── Clientes ─────────────────────────────────────────────────────────────────

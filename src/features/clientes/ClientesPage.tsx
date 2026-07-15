@@ -35,7 +35,7 @@ export default function ClientesPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editar, setEditar] = useState<Cliente | null>(null)
 
-  const { ref: cardsRef, perPage: autoPerPage } = useAutoPageSize({ minCol: 280, rows: 4 })
+  const { ref: cardsRef, perPage: autoPerPage } = useAutoPageSize({ rows: 4 })
   const perPage = vista === 'cards' ? autoPerPage : PER_PAGE
   useEffect(() => { setPage(1) }, [perPage])
 
