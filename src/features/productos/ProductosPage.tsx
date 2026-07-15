@@ -10,6 +10,7 @@ import { Lightbox } from '@/components/ui/Lightbox'
 import { ProductoForm } from './ProductoForm'
 import { AjustarStock } from './AjustarStock'
 import { productosApi, catalogosApi } from '@/lib/api'
+import { useAutoPageSize } from '@/lib/hooks'
 import { q, fmtN } from '@/lib/format'
 import type { Producto, ProductoFiltros, Paginado } from '@/types/producto'
 
@@ -34,6 +35,11 @@ export default function ProductosPage() {
   const [zoom, setZoom] = useState<string | null>(null)
   const [aReestockear, setAReestockear] = useState<Producto | null>(null)
 
+  // Vista tabla usa PER_PAGE fijo (las filas ocupan todo el ancho, sin huecos).
+  // Vista cards calcula cuántas caben según el ancho real, para llenar la página.
+  const { ref: cardsRef, perPage: autoPerPage } = useAutoPageSize({ minCol: 220, rows: 4 })
+  const perPage = vista === 'cards' ? autoPerPage : PER_PAGE
+
   const abrirNuevo = () => { setProductoEditar(null); setFormOpen(true) }
   const abrirEditar = (p: Producto) => { setProductoEditar(p); setFormOpen(true) }
 
@@ -44,6 +50,10 @@ export default function ProductosPage() {
     return () => clearTimeout(t)
   }, [search])
 
+  // Si cambia el tamaño de página (cambio de vista o de ancho de ventana), la
+  // página actual puede quedar fuera de rango — vuelve a la 1.
+  useEffect(() => { setPage(1) }, [perPage])
+
   const filtros: ProductoFiltros = {
     search: searchDebounced || undefined,
     estado: estado !== 'todos' ? estado : undefined,
@@ -51,7 +61,7 @@ export default function ProductosPage() {
     categoria_id: categoria !== 'todos' ? Number(categoria) : undefined,
     sort: sort !== 'nombre_asc' ? sort : undefined,
     page,
-    per_page: PER_PAGE,
+    per_page: perPage,
   }
 
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
@@ -171,7 +181,7 @@ export default function ProductosPage() {
         <div className="card"><div className="empty" style={{ padding: 80 }}><I.Package /><div>No se encontraron productos con esos filtros</div></div></div>
       ) : vista === 'cards' ? (
         <>
-          <div className="pcards">
+          <div className="pcards" ref={cardsRef}>
             {productos.map((p) => (
               <ProductoCard key={p.id} producto={p} onZoom={setZoom} onVer={() => navigate(`/productos/${p.id}`)} onEditar={() => abrirEditar(p)} onReestock={() => setAReestockear(p)} onToggleEstado={() => onToggleEstado(p)} onEliminar={() => setAEliminar(p)} />
             ))}

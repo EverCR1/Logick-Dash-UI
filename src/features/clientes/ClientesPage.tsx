@@ -10,7 +10,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Pagination } from '@/components/ui/Pagination'
 import { ClienteForm } from './ClienteForm'
 import { clientesApi } from '@/lib/api'
-import { useDebounce } from '@/lib/hooks'
+import { useDebounce, useAutoPageSize } from '@/lib/hooks'
 import { fmtN } from '@/lib/format'
 import { inicialesNombre } from '@/lib/text'
 import type { Cliente, ClienteFiltros } from '@/types/cliente'
@@ -35,12 +35,16 @@ export default function ClientesPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editar, setEditar] = useState<Cliente | null>(null)
 
+  const { ref: cardsRef, perPage: autoPerPage } = useAutoPageSize({ minCol: 280, rows: 4 })
+  const perPage = vista === 'cards' ? autoPerPage : PER_PAGE
+  useEffect(() => { setPage(1) }, [perPage])
+
   const filtros: ClienteFiltros = {
     search: searchDebounced || undefined,
     estado: estado !== 'todos' ? estado : undefined,
     tipo: tipo !== 'todos' ? tipo : undefined,
     page,
-    per_page: PER_PAGE,
+    per_page: perPage,
   }
 
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
@@ -131,7 +135,7 @@ export default function ClientesPage() {
         <div className="card"><div className="empty" style={{ padding: 80 }}><I.UserCircle /><div>No se encontraron clientes con esos filtros</div></div></div>
       ) : vista === 'cards' ? (
         <>
-          <div className="ccards">
+          <div className="ccards" ref={cardsRef}>
             {clientes.map((c) => (
               <ClienteCard key={c.id} cliente={c}
                 onVer={() => navigate(`/clientes/${c.id}`)} onEditar={() => abrirEditar(c)}

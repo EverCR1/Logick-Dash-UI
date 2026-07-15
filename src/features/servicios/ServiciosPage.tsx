@@ -11,7 +11,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { Lightbox } from '@/components/ui/Lightbox'
 import { ServicioForm } from './ServicioForm'
 import { serviciosApi } from '@/lib/api'
-import { useDebounce } from '@/lib/hooks'
+import { useDebounce, useAutoPageSize } from '@/lib/hooks'
 import { q, fmtN } from '@/lib/format'
 import type { Servicio, ServicioFiltros } from '@/types/servicio'
 
@@ -41,9 +41,13 @@ export default function ServiciosPage() {
   const [editar, setEditar] = useState<Servicio | null>(null)
   const [zoom, setZoom] = useState<string | null>(null)
 
-  useEffect(() => { localStorage.setItem('servicios_vista', vista) }, [vista])
+  const { ref: cardsRef, perPage: autoPerPage } = useAutoPageSize({ minCol: 220, rows: 4 })
+  const perPage = vista === 'cards' ? autoPerPage : PER_PAGE
 
-  const filtros: ServicioFiltros = { search: searchDebounced || undefined, estado: estado !== 'todos' ? estado : undefined, page, per_page: PER_PAGE }
+  useEffect(() => { localStorage.setItem('servicios_vista', vista) }, [vista])
+  useEffect(() => { setPage(1) }, [perPage])
+
+  const filtros: ServicioFiltros = { search: searchDebounced || undefined, estado: estado !== 'todos' ? estado : undefined, page, per_page: perPage }
 
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['servicios', filtros],
@@ -117,7 +121,7 @@ export default function ServiciosPage() {
         <div className="card"><div className="empty" style={{ padding: 80 }}><I.Boxes /><div>No se encontraron servicios</div></div></div>
       ) : vista === 'cards' ? (
         <>
-          <div className="pcards">
+          <div className="pcards" ref={cardsRef}>
             {servicios.map((s) => (
               <ServicioCard key={s.id} servicio={s} onZoom={setZoom}
                 onVer={() => navigate(`/servicios/${s.id}`)} onEditar={() => { setEditar(s); setFormOpen(true) }}

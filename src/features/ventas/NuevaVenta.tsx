@@ -12,7 +12,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { CrearClienteRapido } from './CrearClienteRapido'
 import { useAuth } from '@/lib/auth'
 import { ventasApi, catalogosApi } from '@/lib/api'
-import { useDebounce, usePaginacionLocal } from '@/lib/hooks'
+import { useDebounce, usePaginacionLocal, useAutoPageSize } from '@/lib/hooks'
 import { q } from '@/lib/format'
 import { METODO_LABEL } from './venta-estados'
 import type { ClienteBusqueda, MetodoPago, ResultadoBusqueda, VentaItemPayload } from '@/types/venta'
@@ -42,7 +42,6 @@ const METODOS: { value: MetodoPago; icon: React.ComponentType<{ size?: number }>
 
 // Catálogo cargado de una vez; la paginación es en cliente
 const CATALOGO_LIMIT = 300
-const POR_PAGINA = 15
 
 let _seq = 0
 const nuevaKey = () => `it-${++_seq}-${Date.now()}`
@@ -120,7 +119,8 @@ export default function NuevaVenta() {
   const cargandoCatalogo = (catProductos.isLoading || catServicios.isLoading) && catalogo.length === 0
   const errorCatalogo = catProductos.isError || catServicios.isError
   const recargarCatalogo = () => { catProductos.refetch(); catServicios.refetch() }
-  const { slice: catalogoPagina, meta, page, setPage } = usePaginacionLocal(catalogo, POR_PAGINA)
+  const { ref: catGridRef, perPage: autoPerPage } = useAutoPageSize({ minCol: 176, rows: 4 })
+  const { slice: catalogoPagina, meta, page, setPage } = usePaginacionLocal(catalogo, autoPerPage)
 
   // ── Clientes ─────────────────────────────────────────────────────────────────
   const clientesBusqueda = useQuery({
@@ -291,7 +291,7 @@ export default function NuevaVenta() {
                 <div style={{ fontSize: 12.5 }}>{query.trim() ? 'Sin coincidencias' : 'El catálogo está vacío'}</div></div>
             ) : (
               <>
-                <div className="pos-grid">
+                <div className="pos-grid" ref={catGridRef}>
                   {catalogoPagina.map((r) => {
                     const cant = cantEnCarrito(r)
                     const dscto = r.en_oferta && r.precio_regular ? Math.round((1 - r.precio / r.precio_regular) * 100) : 0
