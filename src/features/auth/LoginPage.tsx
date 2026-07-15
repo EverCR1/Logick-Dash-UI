@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { Mail, Lock, Eye, EyeOff, LogIn, Loader2, AlertCircle } from 'lucide-react'
 import { isAxiosError } from 'axios'
 import { useAuth } from '@/lib/auth'
@@ -103,6 +103,8 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+
+            <Link to="/password/forgot" className="login-forgot">¿Olvidaste tu contraseña?</Link>
 
             <button type="submit" className="btn-submit" disabled={enviando}>
               {enviando ? <Loader2 size={16} className="spin" /> : <LogIn size={16} />}

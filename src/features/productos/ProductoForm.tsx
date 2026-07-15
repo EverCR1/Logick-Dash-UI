@@ -83,12 +83,15 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
     setAVincular([])
   }, [open, producto])
 
-  // Margen estimado: ((venta - compra) / compra) * 100
+  // Margen estimado: ((precio efectivo - compra) / compra) * 100.
+  // El precio efectivo es el de oferta cuando está ingresado (es el que realmente
+  // se cobra), y si no, el de venta normal.
   const margen = useMemo(() => {
     const c = parseFloat(form.precio_compra)
-    const v = parseFloat(form.precio_venta)
+    const oferta = parseFloat(form.precio_oferta)
+    const v = oferta > 0 ? oferta : parseFloat(form.precio_venta)
     return c > 0 && v > 0 ? ((v - c) / c) * 100 : null
-  }, [form.precio_compra, form.precio_venta])
+  }, [form.precio_compra, form.precio_venta, form.precio_oferta])
   const margenTono = margen == null ? undefined : margen >= 30 ? 'pos' : margen >= 15 ? 'warn' : 'neg'
 
   const addAtributo = () => setAtributos((a) => [...a, { nombre: '', valor: '' }])
@@ -345,7 +348,9 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
             {margen == null
               ? <span className="muted">—</span>
               : <span className="badge" data-tone={margenTono}><span className="b-dot" />{margen.toFixed(1)}%</span>}
-            <span className="muted" style={{ fontSize: 11.5 }}>sobre el precio de compra</span>
+            <span className="muted" style={{ fontSize: 11.5 }}>
+              {parseFloat(form.precio_oferta) > 0 ? 'sobre el precio de oferta' : 'sobre el precio de venta'}
+            </span>
           </div>
         </div>
         <Campo label="Garantía" error={errores.garantia}>

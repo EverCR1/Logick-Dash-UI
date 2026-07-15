@@ -25,6 +25,19 @@ export const authApi = {
     await apiClient.post('/change-password', payload)
   },
 
+  // Recuperación de contraseña (público). El backend responde siempre un mensaje genérico.
+  solicitarReset: async (email: string): Promise<string> => {
+    const { data } = await apiClient.post<{ success: boolean; message: string }>('/password/forgot', { email })
+    return data.message
+  },
+
+  restablecerPassword: async (payload: {
+    email: string; token: string; password: string; password_confirmation: string
+  }): Promise<string> => {
+    const { data } = await apiClient.post<{ success: boolean; message: string }>('/password/reset', payload)
+    return data.message
+  },
+
   logout: async (): Promise<void> => {
     try {
       await apiClient.post('/logout')

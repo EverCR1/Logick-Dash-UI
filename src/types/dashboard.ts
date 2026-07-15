@@ -1,5 +1,46 @@
 import type { AreaPoint } from '@/components/charts'
 
+// Bloque de margen/utilidad por tipo (para el toggle Prod/Serv/Todo)
+export interface BloqueRenta {
+  margen_pct: number
+  margen_delta_pts: number
+  utilidad: number
+  ingresos: number
+  utilidad_delta_pct: number | null
+  top_item: string | null
+}
+
+export interface ItemRentaProducto {
+  nombre: string
+  categoria: string
+  stock: number
+  stock_minimo: number
+  precio: number
+  margen_pct: number
+  utilidad_u: number
+  estado: 'agotado' | 'bajo' | 'ok'
+  ganancia: number
+}
+
+export interface ItemRentaServicio {
+  nombre: string
+  precio: number
+  margen_pct: number
+  utilidad_u: number
+  unidades: number
+  ganancia: number
+}
+
+export interface Rentabilidad {
+  productos: BloqueRenta
+  servicios: BloqueRenta
+  total: BloqueRenta
+  rotacion: { veces: number; delta: number }
+  rotacion_categorias: { nombre: string; veces: number }[]
+  items_productos: ItemRentaProducto[]
+  items_servicios: ItemRentaServicio[]
+}
+
 export interface DashboardData {
   ventas: {
     hoy: { total: number; count: number }
@@ -8,6 +49,7 @@ export interface DashboardData {
     promedio_venta: number
     venta_maxima: number
   }
+  rentabilidad: Rentabilidad
   serie_ventas: {
     serie: AreaPoint[]
     ingreso_total: number

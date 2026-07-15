@@ -109,7 +109,11 @@ export default function NuevaVenta() {
     const serv = catServicios.data ?? []
     if (tabCat === 'producto') return prod
     if (tabCat === 'servicio') return serv
-    return [...prod, ...serv]
+    // "Todos": cada lista ya viene ordenada por más vendido, pero concatenarlas
+    // dejaría todos los productos antes que cualquier servicio sin importar ventas
+    // reales. Se mezclan y reordenan por "vendidos" para que compitan entre sí.
+    return [...prod, ...serv].sort((a, b) =>
+      (b.vendidos ?? 0) - (a.vendidos ?? 0) || a.nombre.localeCompare(b.nombre, 'es'))
   }, [catProductos.data, catServicios.data, tabCat])
 
   // Spinner solo mientras no haya NADA que mostrar todavía

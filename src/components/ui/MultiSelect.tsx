@@ -84,7 +84,8 @@ export function MultiSelect({ options, selected, onChange, placeholder = 'Selecc
                   style={o.nivel ? { paddingLeft: 10 + o.nivel * 16 } : undefined}
                 >
                   <span className="box">{checked && <Check size={11} />}</span>
-                  {o.label}
+                  <span className="multi-item-label">{o.label}</span>
+                  {o.nivel != null && <span className="multi-item-nivel">{o.nivel === 0 ? 'Raíz' : `Nivel ${o.nivel}`}</span>}
                 </DropdownMenu.Item>
               )
             })}

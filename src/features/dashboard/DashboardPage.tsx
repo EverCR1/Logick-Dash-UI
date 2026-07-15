@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
@@ -7,9 +7,10 @@ import { Sparkline, AreaChart, Donut, type DonutSegment } from '@/components/cha
 import { dashboardApi } from '@/lib/api'
 import type { RangoSerie } from '@/lib/api/dashboard'
 import { q, fmtN, pct } from '@/lib/format'
-import type { DashboardData } from '@/types/dashboard'
+import type { DashboardData, Rentabilidad } from '@/types/dashboard'
 
 type Tone = 'accent' | 'info' | 'violet' | 'warn' | 'pos' | 'neg'
+type RentaVista = 'productos' | 'servicios' | 'total'
 
 const METODO_INFO: Record<string, { label: string; icon: IconName }> = {
   efectivo: { label: 'Efectivo', icon: 'Cash' },
@@ -91,6 +92,172 @@ function HeroKpiGrid({ d }: { d: DashboardData }) {
         sublabel={`${d.ventas.mes.count} transacciones`} spark={tendencia} sparkColor="var(--violet)" icon="TrendUp" tone="violet" />
       <HeroKpi label="Promedio / venta" value={fmtN(d.ventas.promedio_venta)} currency="Q"
         sublabel={`Máx ${q(d.ventas.venta_maxima)} esta semana`} spark={tendencia} sparkColor="var(--warn)" icon="Activity" tone="warn" />
+    </div>
+  )
+}
+
+// ── Rentabilidad ────────────────────────────────────────────────────────────────
+
+function SegToggle<T extends string>({ value, onChange, options }: {
+  value: T; onChange: (v: T) => void; options: { v: T; l: string }[]
+}) {
+  return (
+    <div className="seg-toggle">
+      {options.map((o) => (
+        <button key={o.v} type="button" className="seg-btn" data-on={value === o.v} onClick={() => onChange(o.v)}>{o.l}</button>
+      ))}
+    </div>
+  )
+}
+
+function Delta({ value, unit }: { value: number | null; unit: string }) {
+  if (value == null) return null
+  const up = value >= 0
+  return (
+    <span className="kpi-delta" data-dir={up ? 'up' : 'down'}>
+      {up ? <I.ArrowUp /> : <I.ArrowDown />} {up ? '+' : '−'}{fmtN(Math.abs(value))}{unit}
+    </span>
+  )
+}
+
+const RENTA_OPC: { v: RentaVista; l: string }[] = [
+  { v: 'productos', l: 'Prod' }, { v: 'servicios', l: 'Serv' }, { v: 'total', l: 'Todo' },
+]
+
+function RentabilidadRow({ r }: { r: Rentabilidad }) {
+  const [vista, setVista] = useState<RentaVista>(() => (localStorage.getItem('dash_renta_vista') as RentaVista) || 'total')
+  useEffect(() => { localStorage.setItem('dash_renta_vista', vista) }, [vista])
+  const b = r[vista]
+
+  return (
+    <>
+      <div className="section-title">
+        <I.TrendUp size={13} /><span>Rentabilidad</span>
+        <div className="line" />
+        <SegToggle value={vista} onChange={setVista} options={RENTA_OPC} />
+      </div>
+      <div className="row-3">
+        <div className="kpi">
+          <div className="kpi-row1">
+            <div className="kpi-label">Margen de ganancia</div>
+            <div className="kpi-icon" data-tone="accent"><I.Activity /></div>
+          </div>
+          <div className="kpi-value tnum">{fmtN(b.margen_pct)}<span className="kpi-unit">%</span></div>
+          <div className="kpi-meta"><Delta value={b.margen_delta_pts} unit=" pts" /><span>vs. mes anterior</span></div>
+        </div>
+
+        <div className="kpi">
+          <div className="kpi-row1">
+            <div className="kpi-label">Rentabilidad</div>
+            <div className="kpi-icon" data-tone="violet"><I.Wallet /></div>
+          </div>
+          <div className="kpi-value tnum"><span className="currency">Q</span>{fmtN(b.utilidad)}</div>
+          <div className="kpi-meta"><Delta value={b.utilidad_delta_pct} unit="%" /><span>{b.top_item ? `Top: ${b.top_item}` : 'utilidad bruta'}</span></div>
+        </div>
+
+        <div className="kpi">
+          <div className="kpi-row1">
+            <div className="kpi-label">Rotación de inventario</div>
+            <div className="kpi-icon" data-tone="pos"><I.Refresh /></div>
+          </div>
+          <div className="kpi-value tnum">{fmtN(r.rotacion.veces)}<span className="kpi-unit">×</span></div>
+          <div className="kpi-meta"><Delta value={r.rotacion.delta} unit="×" /><span>promedio del catálogo</span></div>
+        </div>
+      </div>
+    </>
+  )
+}
+
+function RotacionCategorias({ r }: { r: Rentabilidad }) {
+  const cats = r.rotacion_categorias
+  const max = Math.max(...cats.map((c) => c.veces), 1)
+  return (
+    <div className="card">
+      <div className="card-header">
+        <div className="card-title"><span className="card-title-dot" style={{ background: 'var(--accent)' }} />Rotación por categoría</div>
+        <span className="badge">Veces / mes</span>
+      </div>
+      {cats.length === 0 ? (
+        <div className="empty"><I.Layers /><div>Sin datos de rotación este mes</div></div>
+      ) : (
+        <div className="card-pad rot-cats">
+          {cats.map((c) => (
+            <div key={c.nombre} className="rot-cat">
+              <span className="rot-cat-name">{c.nombre}</span>
+              <span className="rot-cat-bar"><span style={{ width: `${(c.veces / max) * 100}%` }} /></span>
+              <span className="rot-cat-val tnum">{fmtN(c.veces)}×</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const ESTADO_STOCK: Record<string, { tone: Tone; label: string }> = {
+  ok: { tone: 'pos', label: 'En stock' },
+  bajo: { tone: 'warn', label: 'Bajo' },
+  agotado: { tone: 'neg', label: 'Agotado' },
+}
+
+function RentabilidadPorItem({ r }: { r: Rentabilidad }) {
+  const [vista, setVista] = useState<'productos' | 'servicios'>('productos')
+  const esProd = vista === 'productos'
+  return (
+    <div className="card">
+      <div className="card-header">
+        <div className="card-title"><span className="card-title-dot" style={{ background: 'var(--violet)' }} />Rentabilidad por {esProd ? 'producto' : 'servicio'}</div>
+        <div className="card-actions">
+          <SegToggle value={vista} onChange={setVista} options={[{ v: 'productos', l: 'Productos' }, { v: 'servicios', l: 'Servicios' }]} />
+          <Link to="/reportes" className="link-arrow">Ver todo <I.ArrowRight /></Link>
+        </div>
+      </div>
+      {esProd ? (
+        r.items_productos.length === 0 ? (
+          <div className="empty"><I.Package /><div>Sin productos vendidos este mes</div></div>
+        ) : (
+          <table className="tbl">
+            <thead><tr><th>Producto</th><th className="num">Stock</th><th className="num">Precio</th><th className="num">Margen</th><th className="num">Util/u</th><th>Estado</th></tr></thead>
+            <tbody>
+              {r.items_productos.map((p, i) => {
+                const e = ESTADO_STOCK[p.estado] ?? ESTADO_STOCK.ok
+                return (
+                  <tr key={p.nombre + i}>
+                    <td>
+                      <div style={{ fontWeight: 500 }}>{p.nombre}</div>
+                      <div className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>{p.categoria}</div>
+                    </td>
+                    <td className="num tnum">{p.stock} <span className="muted">/ {p.stock_minimo}</span></td>
+                    <td className="num tnum">{q(p.precio)}</td>
+                    <td className="num tnum" style={{ color: 'var(--pos)', fontWeight: 600 }}>{fmtN(p.margen_pct)}%</td>
+                    <td className="num tnum">{q(p.utilidad_u)}</td>
+                    <td><span className="badge" data-tone={e.tone}><span className="b-dot" />{e.label}</span></td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )
+      ) : (
+        r.items_servicios.length === 0 ? (
+          <div className="empty"><I.Boxes /><div>Sin servicios realizados este mes</div></div>
+        ) : (
+          <table className="tbl">
+            <thead><tr><th>Servicio</th><th className="num">Realizados</th><th className="num">Precio</th><th className="num">Margen</th><th className="num">Util/u</th></tr></thead>
+            <tbody>
+              {r.items_servicios.map((s, i) => (
+                <tr key={s.nombre + i}>
+                  <td style={{ fontWeight: 500 }}>{s.nombre}</td>
+                  <td className="num tnum">{s.unidades}</td>
+                  <td className="num tnum">{q(s.precio)}</td>
+                  <td className="num tnum" style={{ color: 'var(--pos)', fontWeight: 600 }}>{fmtN(s.margen_pct)}%</td>
+                  <td className="num tnum">{q(s.utilidad_u)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
+      )}
     </div>
   )
 }
@@ -181,39 +348,39 @@ function CompactKpi({ label, icon, tone, value, currency, children, to }: {
     : <div className="kpi kpi-compact">{inner}</div>
 }
 
-function SecondaryKpis({ d }: { d: DashboardData }) {
+// Tira compacta con los contadores de catálogo: son datos que casi no cambian
+// día a día (a diferencia de ventas/rentabilidad), así que van en una sola fila
+// delgada en vez de ocupar una card grande cada uno. Cada stat lleva a su módulo.
+function MiniStat({ to, icon, label, value, tone, badge }: {
+  to: string; icon: IconName; label: string; value: string; tone: Tone
+  badge?: { tone: Tone; text: string }
+}) {
+  const IconC = I[icon]
   return (
-    <div className="row-3">
-      <CompactKpi to="/clientes" label="Clientes" icon="Users" tone="accent" value={fmtN(d.clientes.total)}>
-        <span className="kpi-delta" data-dir="up"><I.ArrowUp /> {d.clientes.nuevos_semana}</span>
-        <span>{d.clientes.activos} activos · {d.clientes.nuevos_semana} nuevos esta semana</span>
-      </CompactKpi>
-      <CompactKpi to="/productos" label="Productos" icon="Package" tone="info" value={fmtN(d.productos.total)}>
-        <span className="badge" data-tone="warn"><span className="b-dot" />{d.productos.stock_bajo} bajo stock</span>
-        <span className="badge" data-tone="neg"><span className="b-dot" />{d.productos.agotados} agotados</span>
-      </CompactKpi>
-      <CompactKpi to="/productos" label="Valor de inventario" icon="Boxes" tone="pos" value={fmtN(d.productos.valor_inventario)} currency="Q">
-        <span>costo del inventario actual</span>
-      </CompactKpi>
-    </div>
+    <Link to={to} className="mini-stat">
+      <span className="mini-stat-icon" data-tone={tone}><IconC /></span>
+      <span className="mini-stat-body">
+        <span className="mini-stat-value tnum">{value}</span>
+        <span className="mini-stat-label">{label}</span>
+      </span>
+      {badge && <span className="badge" data-tone={badge.tone}><span className="b-dot" />{badge.text}</span>}
+    </Link>
   )
 }
 
-function InventoryRow({ d }: { d: DashboardData }) {
+function ResumenNegocio({ d }: { d: DashboardData }) {
   return (
-    <div className="kpi-grid">
-      <CompactKpi to="/servicios" label="Servicios" icon="Boxes" tone="info" value={fmtN(d.servicios.total)}>
-        <span>{d.servicios.activos} activos</span>
-      </CompactKpi>
-      <CompactKpi to="/creditos" label="Créditos activos" icon="Card" tone="violet" value={fmtN(d.creditos.activos)}>
-        <span>{q(d.creditos.capital_pendiente)} pendiente</span>
-      </CompactKpi>
-      <CompactKpi to="/proveedores" label="Proveedores" icon="Truck" tone="warn" value={fmtN(d.proveedores.total)}>
-        <span>{d.proveedores.activos} activos</span>
-      </CompactKpi>
-      <CompactKpi to="/categorias" label="Categorías" icon="Tag" tone="accent" value={fmtN(d.categorias.total)}>
-        <span>Nivel 0: {d.categorias.nivel_0}</span>
-      </CompactKpi>
+    <div className="card mini-stat-strip">
+      <MiniStat to="/clientes" icon="Users" tone="accent" label="Clientes" value={fmtN(d.clientes.total)}
+        badge={d.clientes.nuevos_semana > 0 ? { tone: 'pos', text: `+${d.clientes.nuevos_semana} esta semana` } : undefined} />
+      <MiniStat to="/productos" icon="Package" tone="info" label="Productos" value={fmtN(d.productos.total)}
+        badge={d.productos.agotados > 0 ? { tone: 'neg', text: `${d.productos.agotados} agotados` } : d.productos.stock_bajo > 0 ? { tone: 'warn', text: `${d.productos.stock_bajo} bajo stock` } : undefined} />
+      <MiniStat to="/productos" icon="Boxes" tone="pos" label="Valor de inventario" value={`Q ${fmtN(d.productos.valor_inventario)}`} />
+      <MiniStat to="/servicios" icon="Boxes" tone="info" label="Servicios" value={fmtN(d.servicios.total)} />
+      <MiniStat to="/creditos" icon="Card" tone="violet" label="Créditos activos" value={fmtN(d.creditos.activos)}
+        badge={d.creditos.capital_pendiente > 0 ? { tone: 'warn', text: `${q(d.creditos.capital_pendiente)} pend.` } : undefined} />
+      <MiniStat to="/proveedores" icon="Truck" tone="warn" label="Proveedores" value={fmtN(d.proveedores.total)} />
+      <MiniStat to="/categorias" icon="Tag" tone="accent" label="Categorías" value={fmtN(d.categorias.total)} />
     </div>
   )
 }
@@ -488,9 +655,13 @@ export default function DashboardPage() {
     <>
       <HeroBanner />
       <HeroKpiGrid d={d} />
+      <RentabilidadRow r={d.rentabilidad} />
       <SalesChartCard initial={d.serie_ventas} />
-      <SecondaryKpis d={d} />
-      <InventoryRow d={d} />
+      <div className="row-2">
+        <RentabilidadPorItem r={d.rentabilidad} />
+        <RotacionCategorias r={d.rentabilidad} />
+      </div>
+      <ResumenNegocio d={d} />
       <TiendaEnLineaKpis d={d} />
       <div className="row-2">
         <DonutCard d={d} />

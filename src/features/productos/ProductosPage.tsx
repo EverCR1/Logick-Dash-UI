@@ -25,6 +25,7 @@ export default function ProductosPage() {
   const [estado, setEstado] = useState('todos')
   const [stock, setStock] = useState('todos')
   const [categoria, setCategoria] = useState('todos')
+  const [sort, setSort] = useState('nombre_asc')
   const [page, setPage] = useState(1)
   const [aEliminar, setAEliminar] = useState<Producto | null>(null)
   const [formOpen, setFormOpen] = useState(false)
@@ -48,6 +49,7 @@ export default function ProductosPage() {
     estado: estado !== 'todos' ? estado : undefined,
     stock: stock !== 'todos' ? stock : undefined,
     categoria_id: categoria !== 'todos' ? Number(categoria) : undefined,
+    sort: sort !== 'nombre_asc' ? sort : undefined,
     page,
     per_page: PER_PAGE,
   }
@@ -140,8 +142,17 @@ export default function ProductosPage() {
         <Select value={stock} onValueChange={(v) => { setStock(v); setPage(1) }} ariaLabel="Stock"
           options={[{ value: 'todos', label: 'Todo el stock' }, { value: 'disponible', label: 'Con stock' }, { value: 'bajo', label: 'Bajo stock' }, { value: 'agotado', label: 'Agotados' }]} />
         <Select value={categoria} onValueChange={(v) => { setCategoria(v); setPage(1) }} ariaLabel="Categoría" options={opcionesCategoria} />
-        {(search || estado !== 'todos' || stock !== 'todos' || categoria !== 'todos') && (
-          <button className="btn" onClick={() => { setSearch(''); setEstado('todos'); setStock('todos'); setCategoria('todos'); setPage(1) }} title="Limpiar filtros"><X size={15} /> Limpiar</button>
+        <Select value={sort} onValueChange={(v) => { setSort(v); setPage(1) }} ariaLabel="Ordenar por"
+          options={[
+            { value: 'nombre_asc', label: 'Nombre A-Z' },
+            { value: 'nombre_desc', label: 'Nombre Z-A' },
+            { value: 'precio_asc', label: 'Menor precio' },
+            { value: 'precio_desc', label: 'Mayor precio' },
+            { value: 'stock_desc', label: 'Mayor stock' },
+            { value: 'stock_asc', label: 'Menor stock' },
+          ]} />
+        {(search || estado !== 'todos' || stock !== 'todos' || categoria !== 'todos' || sort !== 'nombre_asc') && (
+          <button className="btn" onClick={() => { setSearch(''); setEstado('todos'); setStock('todos'); setCategoria('todos'); setSort('nombre_asc'); setPage(1) }} title="Limpiar filtros"><X size={15} /> Limpiar</button>
         )}
         <div className="view-toggle">
           <button data-on={vista === 'tabla'} onClick={() => setVista('tabla')} title="Vista de tabla"><List /></button>

@@ -52,12 +52,14 @@ export function ServicioForm({ open, onClose, servicio }: {
 
   const set = (c: string, v: string) => { setForm((f) => ({ ...f, [c]: v })); setErrores((e) => ({ ...e, [c]: '' })) }
 
-  // Margen estimado: ((venta - inversión) / inversión) * 100
+  // Margen estimado: ((precio efectivo - inversión) / inversión) * 100.
+  // El precio efectivo es el de oferta cuando está ingresado, y si no, el de venta normal.
   const margen = useMemo(() => {
     const inv = parseFloat(form.inversion_estimada)
-    const v = parseFloat(form.precio_venta)
+    const oferta = parseFloat(form.precio_oferta)
+    const v = oferta > 0 ? oferta : parseFloat(form.precio_venta)
     return inv > 0 && v > 0 ? ((v - inv) / inv) * 100 : null
-  }, [form.inversion_estimada, form.precio_venta])
+  }, [form.inversion_estimada, form.precio_venta, form.precio_oferta])
   const margenTono = margen == null ? undefined : margen >= 30 ? 'pos' : margen >= 15 ? 'warn' : 'neg'
 
   const guardar = useMutation({

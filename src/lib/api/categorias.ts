@@ -6,9 +6,15 @@ export const categoriasApi = {
     const { data } = await apiClient.get<CategoriasResponse>('/categorias', { params: filtros })
     return data
   },
+  // El backend no ordena el árbol; se ordena aquí alfabéticamente en cada nivel
+  // (raíz y cada grupo de subcategorías), de forma recursiva.
   arbol: async (): Promise<CategoriaArbol[]> => {
     const { data } = await apiClient.get<{ success: boolean; categorias: CategoriaArbol[] }>('/categorias-tree')
-    return data.categorias
+    const ordenar = (nodos: CategoriaArbol[]): CategoriaArbol[] =>
+      [...nodos]
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }))
+        .map((n) => ({ ...n, children_recursive: n.children_recursive ? ordenar(n.children_recursive) : n.children_recursive }))
+    return ordenar(data.categorias)
   },
   crear: async (payload: CategoriaPayload): Promise<Categoria> => {
     const { data } = await apiClient.post<{ success: boolean; categoria: Categoria }>('/categorias', payload)

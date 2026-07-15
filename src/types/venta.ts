@@ -83,6 +83,7 @@ export interface ResultadoBusqueda {
   ubicacion?: string | null
   precio_regular?: number
   en_oferta?: boolean
+  vendidos?: number
 }
 
 export interface ClienteBusqueda {

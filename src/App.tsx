@@ -5,6 +5,8 @@ import AppLayout from '@/components/layout/AppLayout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import RoleGuard from '@/components/RoleGuard'
 import LoginPage from '@/features/auth/LoginPage'
+import ForgotPasswordPage from '@/features/auth/ForgotPasswordPage'
+import ResetPasswordPage from '@/features/auth/ResetPasswordPage'
 import PlaceholderPage from '@/components/PlaceholderPage'
 import { NAV, type NavItem } from '@/config/nav'
 
@@ -71,6 +73,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/password/forgot" element={<ForgotPasswordPage />} />
+      <Route path="/password/reset/:token" element={<ResetPasswordPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
