@@ -228,9 +228,17 @@ export default function ProductosPage() {
 
 // ── Helpers compartidos ─────────────────────────────────────────────────────
 
+// Miniatura de tabla (38px): la thumb de ImgBB se ve nítida a ese tamaño
 function imagenDe(p: Producto): string | undefined {
   const img = p.imagenes?.find((i) => i.es_principal) ?? p.imagenes?.[0]
   return img?.url_thumb ?? img?.url_medium ?? img?.url
+}
+
+// Imagen de card (~220px): usa la mediana/completa; la thumb de 180px se vería
+// borrosa al ampliarse (sobre todo en pantallas retina)
+function imagenCard(p: Producto): string | undefined {
+  const img = p.imagenes?.find((i) => i.es_principal) ?? p.imagenes?.[0]
+  return img?.url_medium ?? img?.url ?? img?.url_thumb
 }
 
 function imagenGrande(p: Producto): string | undefined {
@@ -304,7 +312,7 @@ function ProductoFila({ n, producto, onZoom, onVer, onEditar, onReestock, onTogg
 function ProductoCard({ producto, onZoom, onVer, onEditar, onReestock, onToggleEstado, onEliminar }: {
   producto: Producto; onZoom: (url: string) => void; onVer: () => void; onEditar: () => void; onReestock: () => void; onToggleEstado: () => void; onEliminar: () => void
 }) {
-  const thumb = imagenDe(producto)
+  const thumb = imagenCard(producto)
   const grande = imagenGrande(producto)
   const activo = producto.estado === 'activo'
   const dcto = producto.precio_oferta

@@ -18,9 +18,16 @@ import type { Servicio, ServicioFiltros } from '@/types/servicio'
 const PER_PAGE = 15
 type Vista = 'tabla' | 'cards'
 
+// Miniatura de tabla (38px): la thumb se ve nítida a ese tamaño
 function thumbDe(s: Servicio): string | undefined {
   const img = s.imagenes?.[0]
   return img?.url_thumb ?? img?.url_medium ?? img?.url ?? undefined
+}
+
+// Imagen de card (~220px): mediana/completa, para que no se vea borrosa
+function imagenCardServicio(s: Servicio): string | undefined {
+  const img = s.imagenes?.[0]
+  return img?.url_medium ?? img?.url ?? img?.url_thumb ?? undefined
 }
 
 function grandeDe(s: Servicio): string | undefined {
@@ -209,7 +216,7 @@ function ServicioCard({ servicio: s, onZoom, onVer, onEditar, onToggle, onElimin
   servicio: Servicio; onZoom: (url: string) => void; onVer: () => void; onEditar: () => void; onToggle: () => void; onEliminar: () => void
 }) {
   const activo = s.estado === 'activo'
-  const thumb = thumbDe(s)
+  const thumb = imagenCardServicio(s)
   const grande = grandeDe(s)
   const dcto = s.precio_oferta && s.precio_venta > 0
     ? Math.round(((s.precio_venta - s.precio_oferta) / s.precio_venta) * 100) : 0
