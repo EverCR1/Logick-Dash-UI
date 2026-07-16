@@ -1410,6 +1410,49 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
 .notif-item:hover .notif-dismiss { opacity: 1; }
 .notif-dismiss:hover { background: var(--bg-elev-2); color: var(--neg); }
 
+/* --- Agrupación por categoría (acordeón inline) --- */
+.notif-group-head { cursor: pointer; }
+.notif-group-title {
+  display: flex; align-items: center; gap: 7px;
+  font-weight: 600; font-size: 12.5px; line-height: 1.3;
+}
+.notif-group-count {
+  font-size: 10.5px; font-weight: 700; line-height: 16px;
+  min-width: 16px; height: 16px; padding: 0 5px;
+  border-radius: 999px; text-align: center;
+  background: var(--bg-elev-2); color: var(--text-muted);
+}
+.notif-group-head[data-unread="true"] .notif-group-count {
+  background: var(--accent); color: #fff;
+}
+.notif-chevron {
+  flex-shrink: 0; color: var(--text-faint);
+  display: flex; align-items: center;
+  transition: transform .16s ease;
+}
+.notif-group[data-open="true"] .notif-chevron { transform: rotate(180deg); }
+/* Punto "no leído" a la izquierda del ícono del grupo */
+.notif-group-head[data-unread="true"] .notif-ico::after {
+  content: ''; position: absolute;
+  top: 8px; left: 6px;
+  width: 7px; height: 7px; border-radius: 999px;
+  background: var(--accent); border: 1.5px solid var(--bg-elev-1);
+}
+.notif-group-head .notif-ico { position: relative; }
+.notif-sublist {
+  margin: 2px 0 4px 12px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+  animation: notif-sub-in .14s ease;
+}
+.notif-item[data-sub="true"] { padding: 8px 10px; }
+.notif-item[data-sub="true"][data-unread="true"] { background: transparent; }
+.notif-item[data-sub="true"][data-unread="true"] .notif-item-title { font-weight: 700; }
+@keyframes notif-sub-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: none; }
+}
+
 /* ============================================================
    Botón danger
    ============================================================ */
