@@ -1322,6 +1322,94 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
 .menu-item.danger svg { color: var(--neg); }
 .menu-sep { height: 1px; background: var(--border); margin: 5px 0; }
 
+/* ── Notificaciones ─────────────────────────────────────────── */
+.notif-count {
+  position: absolute;
+  top: 1px; right: 1px;
+  min-width: 15px; height: 15px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--neg);
+  color: #fff;
+  font-size: 9.5px; font-weight: 700;
+  line-height: 15px; text-align: center;
+  border: 2px solid var(--bg);
+  box-sizing: content-box;
+}
+.notif-panel {
+  width: 360px; max-width: calc(100vw - 24px);
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.16), 0 1px 3px rgba(0,0,0,.08);
+  z-index: 50;
+  overflow: hidden;
+  animation: menu-in .12s ease;
+}
+.notif-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.notif-title { font-weight: 600; font-size: 13.5px; }
+.notif-badge {
+  font-size: 11px; font-weight: 600;
+  background: var(--bg-elev-2); color: var(--text-muted);
+  padding: 1px 8px; border-radius: 999px;
+}
+.notif-list { max-height: 62vh; overflow-y: auto; padding: 4px; }
+.notif-empty {
+  display: grid; justify-items: center; gap: 3px;
+  padding: 40px 16px; text-align: center; color: var(--text-faint);
+}
+.notif-empty div { font-weight: 600; font-size: 13px; color: var(--text-muted); }
+.notif-empty span { font-size: 11.5px; }
+
+.notif-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px; border-radius: 9px;
+  position: relative;
+}
+.notif-item:hover { background: var(--hover); }
+.notif-item[data-unread="true"] { background: var(--accent-soft); }
+.notif-item[data-unread="true"]:hover { background: var(--accent-soft); }
+.notif-ico {
+  width: 30px; height: 30px; flex-shrink: 0;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-elev-2); color: var(--text-muted);
+}
+.notif-ico[data-nivel="danger"] { background: var(--neg-soft); color: var(--neg); }
+.notif-ico[data-nivel="warning"] { background: var(--warn-soft); color: var(--warn); }
+.notif-ico[data-nivel="info"] { background: var(--info-soft); color: var(--info); }
+.notif-body { flex: 1; min-width: 0; cursor: pointer; }
+.notif-item-title { font-weight: 600; font-size: 12.5px; line-height: 1.3; }
+.notif-item-msg {
+  font-size: 11.5px; color: var(--text-muted); margin-top: 1px;
+  line-height: 1.35;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.notif-item-time { font-size: 10.5px; color: var(--text-faint); margin-top: 3px; }
+.notif-actions { margin-top: 7px; }
+.notif-act {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600;
+  padding: 4px 9px; border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev-1); color: var(--text-muted);
+  cursor: pointer;
+}
+.notif-act[data-tone="pos"]:hover { background: var(--pos-soft); color: var(--pos); border-color: transparent; }
+.notif-dismiss {
+  width: 22px; height: 22px; flex-shrink: 0;
+  border: 0; background: transparent; color: var(--text-faint);
+  border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity .12s;
+}
+.notif-item:hover .notif-dismiss { opacity: 1; }
+.notif-dismiss:hover { background: var(--bg-elev-2); color: var(--neg); }
+
 /* ============================================================
    Botón danger
    ============================================================ */
@@ -1702,11 +1790,14 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
 .pcard-img {
   position: relative;
   aspect-ratio: 16 / 11;
+  min-height: 0; /* evita que el contenido fuerce el alto en el flex column */
+  overflow: hidden;
   background: var(--bg-elev-2);
   display: flex; align-items: center; justify-content: center;
   color: var(--text-faint);
 }
-.pcard-img img { width: 100%; height: 100%; object-fit: cover; }
+/* Absoluta: llena la caja de proporción fija y jamás la estira, sea cual sea el alto real de la imagen */
+.pcard-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 .pcard-badge {
   position: absolute; top: 8px; right: 8px;
 }

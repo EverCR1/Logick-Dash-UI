@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth'
 import { NAV_TITLES } from '@/config/nav'
 import { ProfileModal } from '@/features/perfil/ProfileModal'
 import { ChangePasswordModal } from '@/features/perfil/ChangePasswordModal'
+import NotificacionesMenu from './NotificacionesMenu'
 
 const ROL_LABEL: Record<string, string> = {
   administrador: 'Administrador',
@@ -58,10 +59,7 @@ export default function Topbar({ onOpenSearch, onOpenNav }: { onOpenSearch: () =
         </button>
       </div>
 
-      <button className="topbar-icon-btn" title="Notificaciones">
-        <I.Bell />
-        <span className="dot" />
-      </button>
+      <NotificacionesMenu />
       <button className="topbar-icon-btn" title="Ajustes">
         <I.Settings />
       </button>

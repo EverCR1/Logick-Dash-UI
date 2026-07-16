@@ -24,6 +24,22 @@ export const fmtFecha = (iso: string | null | undefined, conHora = false): strin
   return d.toLocaleDateString('es-GT', opts)
 }
 
+// Tiempo relativo compacto: "ahora", "hace 5 min", "hace 2 h", "hace 3 d"
+export const hace = (iso: string | null | undefined): string => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  const seg = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000))
+  if (seg < 60) return 'ahora'
+  const min = Math.floor(seg / 60)
+  if (min < 60) return `hace ${min} min`
+  const h = Math.floor(min / 60)
+  if (h < 24) return `hace ${h} h`
+  const dias = Math.floor(h / 24)
+  if (dias < 7) return `hace ${dias} d`
+  return fmtFecha(iso)
+}
+
 // Hora legible: "03:42 PM"
 export const fmtHora = (iso: string | null | undefined): string => {
   if (!iso) return ''
