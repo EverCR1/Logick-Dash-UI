@@ -5,7 +5,7 @@ import { isAxiosError } from 'axios'
 import { toast } from 'sonner'
 import {
   Loader2, Plus, Minus, Trash2, X, Search, ShoppingCart, ChevronsLeft, ChevronUp,
-  Banknote, CreditCard, Landmark, Shuffle, Clock, User, Receipt, Package, Boxes, AlertCircle, MapPin,
+  Banknote, CreditCard, Landmark, Shuffle, Clock, User, Receipt, Package, Boxes, AlertCircle, MapPin, Percent, Store,
 } from 'lucide-react'
 import { Select } from '@/components/ui/Select'
 import { Pagination } from '@/components/ui/Pagination'
@@ -27,6 +27,8 @@ interface CartItem {
   producto_id?: number
   servicio_id?: number
   stock?: number
+  custom?: boolean   // línea manual: descripción/tipo/costo editables
+  costo?: number     // costo unitario (solo líneas manuales)
 }
 
 type Vista = 'terminal' | 'formulario'
@@ -59,6 +61,7 @@ export default function NuevaVenta() {
   const [query, setQuery] = useState('')
   const queryDebounced = useDebounce(query)
   const [cart, setCart] = useState<CartItem[]>([])
+  const [dctoAbierto, setDctoAbierto] = useState<Set<string>>(new Set())  // líneas con el campo de descuento visible
   const [cliente, setCliente] = useState<ClienteBusqueda | null>(null)
   const [clienteQuery, setClienteQuery] = useState('')
   const clienteQueryDebounced = useDebounce(clienteQuery)
@@ -150,7 +153,7 @@ export default function NuevaVenta() {
     })
   }
 
-  const agregarCustom = () => setCart((prev) => [...prev, { key: nuevaKey(), tipo: 'otro', descripcion: '', precio_unitario: 0, cantidad: 1, descuento: 0 }])
+  const agregarCustom = () => setCart((prev) => [...prev, { key: nuevaKey(), tipo: 'producto', custom: true, descripcion: '', precio_unitario: 0, costo: 0, cantidad: 1, descuento: 0 }])
   const actualizar = (key: string, patch: Partial<CartItem>) => setCart((prev) => prev.map((c) => c.key === key ? { ...c, ...patch } : c))
   const quitar = (key: string) => setCart((prev) => prev.filter((c) => c.key !== key))
   const cambiarCantidad = (c: CartItem, delta: number) => {
@@ -160,11 +163,31 @@ export default function NuevaVenta() {
     actualizar(c.key, { cantidad: n })
   }
 
+  const abrirDcto = (key: string) => setDctoAbierto((s) => new Set(s).add(key))
+  const cerrarDcto = (c: CartItem) => {
+    actualizar(c.key, { descuento: 0 })
+    setDctoAbierto((s) => { const n = new Set(s); n.delete(c.key); return n })
+  }
+
   // Cantidad ya en el ticket para un ítem del catálogo (badge de la card)
   const cantEnCarrito = (r: ResultadoBusqueda) => {
     const idKey = r.tipo === 'producto' ? 'producto_id' : 'servicio_id'
     return cart.find((c) => c[idKey] === r.id && c.tipo === r.tipo)?.cantidad ?? 0
   }
+
+  // Controles extra de una línea manual: clasificación (producto/servicio) y costo
+  const customMeta = (c: CartItem) => (
+    <div className="custom-meta">
+      <div className="custom-tipo-toggle">
+        <button type="button" data-tipo="producto" data-active={c.tipo === 'producto'} onClick={() => actualizar(c.key, { tipo: 'producto' })}>Producto</button>
+        <button type="button" data-tipo="servicio" data-active={c.tipo === 'servicio'} onClick={() => actualizar(c.key, { tipo: 'servicio' })}>Servicio</button>
+      </div>
+      <label className="custom-costo">Costo Q
+        <input type="number" min="0" step="0.01" value={c.costo ?? 0}
+          onChange={(e) => actualizar(c.key, { costo: Math.max(0, Number(e.target.value) || 0) })} />
+      </label>
+    </div>
+  )
 
   const totales = useMemo(() => {
     const subtotal = cart.reduce((s, c) => s + c.precio_unitario * c.cantidad, 0)
@@ -178,6 +201,8 @@ export default function NuevaVenta() {
       const items: VentaItemPayload[] = cart.map((c) => ({
         tipo: c.tipo, cantidad: c.cantidad, descripcion: c.descripcion.trim(),
         precio_unitario: c.precio_unitario, descuento: c.descuento || 0,
+        // El costo solo aplica a líneas manuales; en las del catálogo se deriva en el reporte
+        costo: c.custom ? (c.costo ?? 0) : null,
         producto_id: c.producto_id ?? null, servicio_id: c.servicio_id ?? null,
       }))
       return ventasApi.crear({
@@ -336,12 +361,45 @@ export default function NuevaVenta() {
               </div>
 
               <div className="pos-ticket-body">
-                {/* Cliente */}
-                {bloqueCliente}
-
-                {/* Sucursal */}
-                <Select value={sucursalId} onValueChange={setSucursalId} placeholder="Mi sucursal"
-                  options={[{ value: 'default', label: 'Mi sucursal (por defecto)' }, ...sucursales.map((s) => ({ value: String(s.id), label: s.nombre }))]} />
+                {/* Sucursal + Cliente */}
+                <div className="pos-meta">
+                  <div className="pos-meta-field">
+                    <label className="pos-meta-label"><Store size={11} /> Sucursal</label>
+                    <Select value={sucursalId} onValueChange={setSucursalId} placeholder="Mi sucursal"
+                      options={[{ value: 'default', label: 'Mi sucursal (por defecto)' }, ...sucursales.map((s) => ({ value: String(s.id), label: s.nombre }))]} />
+                  </div>
+                  <div className="pos-meta-field">
+                    <label className="pos-meta-label"><User size={11} /> Cliente</label>
+                    {cliente ? (
+                      <div className="pos-client-chip">
+                        <User size={13} />
+                        <span>{cliente.nombre}</span>
+                        <button className="cx" title="Quitar cliente" onClick={() => { setCliente(null); setClienteQuery('') }}><X size={13} /></button>
+                      </div>
+                    ) : (
+                      <div className="ac-wrap">
+                        <div className="pos-client-search">
+                          <Search size={13} />
+                          <input placeholder="Consumidor final…" value={clienteQuery} onChange={(e) => setClienteQuery(e.target.value)} />
+                          {clienteQuery && (
+                            <button className="pos-client-clear" title="Limpiar búsqueda" onClick={() => setClienteQuery('')}><X size={13} /></button>
+                          )}
+                          <button className="pos-client-add" title="Crear cliente" onClick={() => setCrearCliente(true)}><Plus size={13} /></button>
+                        </div>
+                        {clienteQueryDebounced.trim().length >= 1 && (clientesBusqueda.data?.length ?? 0) > 0 && (
+                          <div className="venta-dropdown">
+                            {clientesBusqueda.data!.map((cl) => (
+                              <button key={cl.id} type="button" className="venta-dropdown-item" onClick={() => { setCliente(cl); setClienteQuery('') }}>
+                                <span style={{ flex: 1 }}>{cl.nombre}</span>
+                                {cl.nit && <span className="muted" style={{ fontSize: 11.5 }}>{cl.nit}</span>}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
 
                 {/* Líneas del ticket */}
                 {cart.length === 0 ? (
@@ -351,58 +409,106 @@ export default function NuevaVenta() {
                     <div className="muted" style={{ fontSize: 11.5 }}>Toca un producto del catálogo para agregarlo.</div>
                   </div>
                 ) : (
-                  <div className="pos-lines">
-                    {cart.map((c) => (
-                      <div key={c.key} className="pos-line">
-                        <div className="pos-line-name-area">
-                          {c.tipo === 'otro'
-                            ? <input className="form-input" style={{ height: 30, fontSize: 12.5 }} placeholder="Descripción" value={c.descripcion} onChange={(e) => actualizar(c.key, { descripcion: e.target.value })} />
-                            : <div className="pos-line-name">{c.descripcion}</div>}
+                  <div className="pos-items">
+                    {cart.map((c) => {
+                      const mostrarDcto = dctoAbierto.has(c.key) || c.descuento > 0
+                      const stepper = (
+                        <div className="qty-stepper">
+                          <button type="button" title={c.cantidad <= 1 ? 'Quitar' : 'Restar'} data-del={c.cantidad <= 1}
+                            onClick={() => c.cantidad <= 1 ? quitar(c.key) : cambiarCantidad(c, -1)}>
+                            {c.cantidad <= 1 ? <Trash2 size={12} /> : <Minus size={12} />}
+                          </button>
+                          <input type="number" min="1" max={c.stock} value={c.cantidad}
+                            onChange={(e) => { let n = Math.max(1, Math.floor(Number(e.target.value) || 1)); if (c.stock != null && n > c.stock) { n = c.stock; toast.error(`Stock máximo: ${c.stock}`) } actualizar(c.key, { cantidad: n }) }} />
+                          <button type="button" title="Sumar" onClick={() => cambiarCantidad(c, 1)}><Plus size={12} /></button>
                         </div>
-                        <div className="pos-line-price-area">
-                          Q <input className="pos-price-input" type="number" min="0" step="0.01" value={c.precio_unitario}
-                            onChange={(e) => actualizar(c.key, { precio_unitario: Math.max(0, Number(e.target.value) || 0) })} />
-                          <span className="pos-line-cu">c/u</span>
-                        </div>
-                        <button className="pos-line-del" title="Quitar" onClick={() => quitar(c.key)}><X size={14} /></button>
-                        <div className="pos-line-qty-area">
-                          <div className="qty-stepper">
-                            <button type="button" onClick={() => cambiarCantidad(c, -1)} disabled={c.cantidad <= 1}><Minus size={13} /></button>
-                            <input type="number" min="1" max={c.stock} value={c.cantidad}
-                              onChange={(e) => { let n = Math.max(1, Math.floor(Number(e.target.value) || 1)); if (c.stock != null && n > c.stock) { n = c.stock; toast.error(`Stock máximo: ${c.stock}`) } actualizar(c.key, { cantidad: n }) }} />
-                            <button type="button" onClick={() => cambiarCantidad(c, 1)}><Plus size={13} /></button>
+                      )
+                      const controls = (
+                        <div className="tk-controls">
+                          {stepper}
+                          <div className="tk-price">
+                            <span className="tk-price-pre">Q</span>
+                            <input className="li-input" type="number" min="0" step="0.01" value={c.precio_unitario}
+                              onChange={(e) => actualizar(c.key, { precio_unitario: Math.max(0, Number(e.target.value) || 0) })} />
                           </div>
-                          <label className="pos-line-dcto">Dcto Q
-                            <input className="pos-dcto-input" type="number" min="0" step="0.01" value={c.descuento}
-                              onChange={(e) => actualizar(c.key, { descuento: Math.max(0, Number(e.target.value) || 0) })} />
-                          </label>
-                          {(c.cantidad > 1 || c.descuento > 0) && <span className="pos-line-sub tnum">{q(c.precio_unitario * c.cantidad - (c.descuento || 0))}</span>}
+                          <div className="tk-total tnum">{q(c.precio_unitario * c.cantidad - (c.descuento || 0))}</div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                      const descuentoBloque = mostrarDcto ? (
+                        <div className="tk-discount">
+                          <Percent size={11} />
+                          <span>Descuento</span>
+                          <span className="tk-price-pre">Q</span>
+                          <input className="li-input small" type="number" min="0" step="0.01" value={c.descuento}
+                            onChange={(e) => actualizar(c.key, { descuento: Math.max(0, Number(e.target.value) || 0) })} />
+                          <button className="cx" title="Quitar descuento" onClick={() => cerrarDcto(c)}><X size={11} /></button>
+                        </div>
+                      ) : (
+                        <button className="tk-add-discount" onClick={() => abrirDcto(c.key)}><Percent size={11} /> Agregar descuento</button>
+                      )
+
+                      return (
+                        <div key={c.key} className="tk-row">
+                          <div className="tk-top">
+                            {c.custom
+                              ? <input className="li-input tk-name-input" placeholder="Descripción del item" value={c.descripcion} onChange={(e) => actualizar(c.key, { descripcion: e.target.value })} />
+                              : <div className="tk-name">{c.descripcion}{c.tipo === 'servicio' && <span className="li-kind">Servicio</span>}</div>}
+                            <button className="tk-remove" title="Quitar" onClick={() => quitar(c.key)}><X size={13} /></button>
+                          </div>
+
+                          {c.custom && (
+                            <div className="custom-tipo-toggle">
+                              <button type="button" data-tipo="producto" data-active={c.tipo === 'producto'} onClick={() => actualizar(c.key, { tipo: 'producto' })}>Producto</button>
+                              <button type="button" data-tipo="servicio" data-active={c.tipo === 'servicio'} onClick={() => actualizar(c.key, { tipo: 'servicio' })}>Servicio</button>
+                            </div>
+                          )}
+
+                          {controls}
+
+                          {c.custom && (
+                            <label className="tk-costo">Costo <span className="tk-price-pre">Q</span>
+                              <input className="li-input small" type="number" min="0" step="0.01" value={c.costo ?? 0}
+                                onChange={(e) => actualizar(c.key, { costo: Math.max(0, Number(e.target.value) || 0) })} />
+                            </label>
+                          )}
+
+                          <div className="tk-bottom">{descuentoBloque}</div>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
 
-                {/* Método de pago */}
-                {bloqueMetodos}
-                {metodo === 'credito' && !cliente && (
-                  <div className="venta-credito-aviso">
-                    <AlertCircle size={15} />
-                    <span>El crédito se registra a nombre del cliente. <b>Selecciona o crea uno</b> arriba.</span>
+                {/* Pie: método de pago + observaciones + totales */}
+                <div className="pos-foot">
+                  <div className="pos-foot-field">
+                    <label className="pos-meta-label">Método de pago</label>
+                    {bloqueMetodos}
                   </div>
-                )}
+                  {metodo === 'credito' && !cliente && (
+                    <div className="venta-credito-aviso">
+                      <AlertCircle size={15} />
+                      <span>El crédito se registra a nombre del cliente. <b>Selecciona o crea uno</b> arriba.</span>
+                    </div>
+                  )}
 
-                {/* Observaciones */}
-                <textarea className="form-textarea" rows={2} value={observaciones} onChange={(e) => setObservaciones(e.target.value)} placeholder="Observaciones (opcional)…" />
+                  <textarea className="form-textarea" rows={2} value={observaciones} onChange={(e) => setObservaciones(e.target.value)} placeholder="Observaciones (opcional)…" />
 
-                {/* Total + cobrar */}
-                <div className="pos-total">
-                  <span>Total <span className="muted" style={{ fontSize: 11.5 }}>· {totales.unidades} uds</span></span>
-                  <span className="tnum">{q(totales.total)}</span>
+                  <div className="sum-rows">
+                    <div className="sum-row"><span>Subtotal</span><span className="sv tnum">{q(totales.subtotal)}</span></div>
+                    {totales.descuento > 0 && (
+                      <div className="sum-row"><span>Descuento</span><span className="sv discount tnum">− {q(totales.descuento)}</span></div>
+                    )}
+                    <div className="sum-row total">
+                      <span>Total <span className="sum-uds">· {totales.unidades} uds</span></span>
+                      <span className="sv tnum">{q(totales.total)}</span>
+                    </div>
+                  </div>
+
+                  <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', height: 44, fontSize: 14 }} onClick={submit} disabled={guardar.isPending || cart.length === 0}>
+                    {guardar.isPending ? <Loader2 size={16} className="spin" /> : <ShoppingCart size={16} />} Cobrar {totales.total > 0 ? q(totales.total) : ''}
+                  </button>
                 </div>
-                <button className="btn btn-primary" style={{ height: 46, fontSize: 14 }} onClick={submit} disabled={guardar.isPending || cart.length === 0}>
-                  {guardar.isPending ? <Loader2 size={16} className="spin" /> : <ShoppingCart size={16} />} Cobrar {totales.total > 0 ? q(totales.total) : ''}
-                </button>
               </div>
             </div>
           </aside>
@@ -510,8 +616,11 @@ export default function NuevaVenta() {
                       {cart.map((c) => (
                         <tr key={c.key}>
                           <td>
-                            {c.tipo === 'otro'
-                              ? <input className="form-input" placeholder="Descripción" value={c.descripcion} onChange={(e) => actualizar(c.key, { descripcion: e.target.value })} />
+                            {c.custom
+                              ? <>
+                                  <input className="form-input" placeholder="Descripción" value={c.descripcion} onChange={(e) => actualizar(c.key, { descripcion: e.target.value })} />
+                                  {customMeta(c)}
+                                </>
                               : <span style={{ fontWeight: 500 }}>{c.descripcion}</span>}
                           </td>
                           <td className="num">

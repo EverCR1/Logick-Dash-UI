@@ -2085,128 +2085,208 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
   display: flex; align-items: center; justify-content: center;
 }
 
-/* Ticket */
+/* ── Ticket (diseño adaptado del refactor) ─────────────────────────── */
 .pos-ticket { position: sticky; top: 16px; }
-.pos-ticket-body { padding: 14px; display: grid; gap: 12px; }
+.pos-ticket .card { overflow: hidden; display: flex; flex-direction: column; }
+.pos-ticket-body { padding: 0; display: flex; flex-direction: column; min-height: 0; }
 .pos-ticket-empty {
-  display: grid;
-  justify-items: center;
-  gap: 4px;
-  padding: 28px 12px;
-  text-align: center;
+  display: grid; justify-items: center; gap: 4px;
+  padding: 40px 16px; text-align: center; color: var(--text-faint);
+}
+
+/* Sucursal + Cliente */
+.pos-meta {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+}
+.pos-meta-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.pos-meta-label {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
   color: var(--text-faint);
 }
-.pos-lines { display: grid; gap: 8px; max-height: 40vh; overflow-y: auto; }
-.pos-line {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  grid-template-areas:
-    "name  price del"
-    "qty   qty   qty";
-  align-items: center;
-  gap: 6px 8px;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  background: var(--bg-elev-1);
+.pos-meta-label svg { width: 11px; height: 11px; }
+.ac-wrap { position: relative; }
+.pos-client-chip {
+  display: flex; align-items: center; gap: 7px;
+  height: 36px; padding: 0 4px 0 10px;
+  border: 1px solid color-mix(in oklch, var(--accent) 30%, transparent);
+  background: var(--accent-soft); border-radius: 8px;
+  font-size: 12.5px; font-weight: 500; color: var(--text);
 }
-.pos-line-name-area { grid-area: name; min-width: 0; }
-.pos-line-name {
-  font-weight: 600;
-  font-size: 12.5px;
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.pos-client-chip > svg { width: 14px; height: 14px; color: var(--accent-text); flex-shrink: 0; }
+.pos-client-chip span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pos-client-chip .cx {
+  flex-shrink: 0; width: 24px; height: 24px;
+  border: 0; background: transparent; color: var(--text-muted);
+  border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
 }
-.pos-line-price-area {
-  grid-area: price;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--text-faint);
+.pos-client-chip .cx:hover { background: var(--hover-strong); color: var(--text); }
+.pos-client-search {
+  display: flex; align-items: center; gap: 6px;
+  height: 36px; padding: 0 4px 0 9px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg);
 }
-.pos-line-cu { font-size: 11px; color: var(--text-faint); }
-.pos-price-input {
-  width: 86px;
-  height: 30px;
-  padding: 0 7px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 13.5px;
-  font-weight: 600;
-  text-align: right;
+.pos-client-search:focus-within { border-color: var(--border-strong); }
+.pos-client-search > svg { width: 13px; height: 13px; color: var(--text-faint); flex-shrink: 0; }
+.pos-client-search input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); font-size: 12.5px; height: 100%; }
+.pos-client-search input:focus { outline: none; }
+.pos-client-clear {
+  flex-shrink: 0; width: 22px; height: 22px;
+  border: 0; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--text-faint);
+  display: flex; align-items: center; justify-content: center;
 }
-.pos-price-input:focus { outline: none; border-color: var(--accent); }
-.pos-line-qty-area {
-  grid-area: qty;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.pos-client-clear:hover { background: var(--hover-strong); color: var(--text); }
+.pos-client-add {
+  flex-shrink: 0; width: 26px; height: 26px;
+  border: 0; border-radius: 6px; cursor: pointer;
+  background: var(--accent-soft); color: var(--accent-text);
+  display: flex; align-items: center; justify-content: center;
 }
-/* Stepper más compacto dentro del ticket */
-.pos-line-qty-area .qty-stepper button { width: 24px; height: 26px; }
-.pos-line-qty-area .qty-stepper button svg { width: 12px; height: 12px; }
-.pos-line-qty-area .qty-stepper input { width: 34px; height: 26px; font-size: 12px; }
-.pos-line-dcto {
+
+/* Lista de ítems */
+.pos-items { flex: 1; overflow-y: auto; min-height: 80px; max-height: 44vh; }
+.tk-row {
+  padding: 11px 14px; border-bottom: 1px solid var(--border-soft);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.tk-row:last-child { border-bottom: 0; }
+.tk-top { display: flex; align-items: flex-start; gap: 8px; }
+.tk-name { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 500; line-height: 1.35; }
+.tk-top .tk-name-input { flex: 1; min-width: 0; width: auto; height: 30px; text-align: left; font-weight: 500; }
+.li-kind {
+  display: inline-flex; padding: 1px 6px; border-radius: 5px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase;
+  background: var(--violet-soft); color: var(--violet); margin-left: 6px; vertical-align: 1px;
+}
+.tk-remove {
+  flex-shrink: 0; width: 22px; height: 22px;
+  border: 0; border-radius: 6px; background: transparent; color: var(--text-faint);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.tk-remove:hover { background: var(--neg-soft); color: var(--neg); }
+
+/* Controles: stepper · precio · total */
+.tk-controls { display: flex; align-items: center; gap: 8px; }
+.tk-controls .qty-stepper { flex-shrink: 0; border: 0; background: transparent; border-radius: 8px; overflow: visible; }
+.tk-controls .qty-stepper button { width: 24px; height: 28px; background: transparent; color: var(--text-muted); }
+.tk-controls .qty-stepper button:hover:not(:disabled) { background: var(--hover-strong); color: var(--text); }
+.tk-controls .qty-stepper button[data-del="true"]:hover { color: var(--neg); background: var(--neg-soft); }
+.tk-controls .qty-stepper button svg { width: 11px; height: 11px; }
+.tk-controls .qty-stepper input { width: 30px; height: 28px; border: 0; background: transparent; text-align: center; font-size: 12px; font-weight: 600; }
+.tk-controls .qty-stepper input:focus { outline: none; }
+.tk-price { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+.tk-price-pre { font-size: 11.5px; color: var(--text-faint); font-weight: 500; }
+.tk-price .li-input { width: 100%; min-width: 0; text-align: left; }
+.tk-total { flex-shrink: 0; font-size: 13px; font-weight: 600; min-width: 58px; text-align: right; }
+.tk-costo { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; font-size: 11.5px; color: var(--text-faint); }
+
+/* Input genérico del ticket */
+.li-input {
+  width: 76px; height: 30px; padding: 0 9px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font: inherit; font-size: 13px; text-align: right; font-variant-numeric: tabular-nums;
+}
+.li-input:focus { outline: 0; border-color: var(--border-strong); }
+.li-input.small { width: 58px; height: 24px; padding: 0 6px; font-size: 11.5px; }
+.li-input::-webkit-outer-spin-button, .li-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.li-input { -moz-appearance: textfield; appearance: textfield; }
+
+/* Descuento colapsable */
+.tk-bottom { display: flex; }
+.tk-add-discount {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: transparent; border: 0; padding: 2px 0; cursor: pointer;
+  font-size: 11.5px; font-weight: 500; color: var(--text-muted); transition: color .12s;
+}
+.tk-add-discount:hover { color: var(--pos); }
+.tk-add-discount svg { width: 11px; height: 11px; }
+.tk-discount {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  font-size: 11.5px; color: var(--text-muted);
+  background: var(--pos-soft); border-radius: 7px; padding: 4px 8px;
+}
+.tk-discount > svg { width: 11px; height: 11px; color: var(--pos); flex-shrink: 0; }
+.tk-discount .cx {
+  width: 20px; height: 20px; margin-left: auto; flex-shrink: 0;
+  border: 0; background: transparent; color: var(--text-faint); border-radius: 5px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.tk-discount .cx:hover { color: var(--neg); }
+
+/* Pie: método + observaciones + totales */
+.pos-foot {
+  border-top: 1px solid var(--border);
+  padding: 12px 14px 14px;
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--bg-elev-2);
+}
+.pos-foot-field { display: flex; flex-direction: column; gap: 6px; }
+.pos-foot .form-textarea { font-size: 12.5px; }
+.sum-rows { display: flex; flex-direction: column; gap: 9px; }
+.sum-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: var(--text-muted); }
+.sum-row .sv { color: var(--text); font-weight: 500; }
+.sum-row.total { padding-top: 11px; margin-top: 2px; border-top: 1px solid var(--border); font-size: 14px; color: var(--text); font-weight: 600; }
+.sum-row.total .sv { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+.sum-row .discount { color: var(--pos); }
+.sum-uds { color: var(--text-faint); font-weight: 400; font-size: 12px; }
+
+/* --- Línea manual: clasificación (producto/servicio) + costo --- */
+.custom-meta {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: 8px; margin-top: 6px;
+}
+.custom-tipo-toggle {
   display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: var(--text-faint);
-  white-space: nowrap;
-}
-.pos-dcto-input {
-  width: 60px;
-  height: 26px;
-  padding: 0 6px;
+  align-self: flex-start;   /* no estirarse a todo el ancho del ticket */
   border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 12px;
-  text-align: right;
+  border-radius: 7px;
+  overflow: hidden;
 }
-.pos-dcto-input:focus { outline: none; border-color: var(--accent); }
+.custom-tipo-toggle button {
+  border: 0; background: transparent; cursor: pointer;
+  padding: 4px 10px;
+  font-size: 11px; font-weight: 600;
+  color: var(--text-muted);
+}
+.custom-tipo-toggle button + button { border-left: 1px solid var(--border); }
+/* Activo: mismos colores que las etiquetas de las cards (producto=azul, servicio=morado) */
+.custom-tipo-toggle button[data-tipo="producto"][data-active="true"] { background: var(--info-soft); color: var(--info); }
+.custom-tipo-toggle button[data-tipo="servicio"][data-active="true"] { background: var(--violet-soft); color: var(--violet); }
+.custom-costo {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--text-faint); white-space: nowrap;
+}
+.custom-costo input {
+  width: 76px; height: 26px; padding: 0 6px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg); color: var(--text);
+  font-size: 12px; text-align: right;
+}
+.custom-costo input:focus { outline: none; border-color: var(--accent); }
 .pos-price-input::-webkit-outer-spin-button, .pos-price-input::-webkit-inner-spin-button,
 .pos-dcto-input::-webkit-outer-spin-button, .pos-dcto-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .pos-price-input, .pos-dcto-input { -moz-appearance: textfield; appearance: textfield; }
-.pos-line-sub { margin-left: auto; font-weight: 600; font-size: 13px; white-space: nowrap; }
-.pos-line-del {
-  grid-area: del;
-  align-self: center;
-  width: 24px; height: 24px;
-  border: 0; background: transparent;
-  color: var(--text-faint);
-  border-radius: 6px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-}
-.pos-line-del:hover { background: var(--hover); color: var(--neg); }
 
-.pos-metodos { grid-template-columns: repeat(auto-fit, minmax(62px, 1fr)); gap: 5px; }
-.pos-metodos .metodo-pill { padding: 8px 2px; gap: 3px; }
+.pos-metodos { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.pos-metodos .metodo-pill {
+  padding: 7px 2px; gap: 3px; border-radius: 8px;
+  background: var(--bg-elev-1); border: 1px solid var(--border);
+}
+.pos-metodos .metodo-pill svg { width: 14px; height: 14px; }
 .pos-metodos .metodo-pill span {
-  font-size: 9px;
+  font-size: 9.5px; font-weight: 500;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.pos-total {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  font-weight: 700;
-  font-size: 15px;
-  padding-top: 4px;
-  border-top: 1px solid var(--border);
+.pos-metodos .metodo-pill[data-on="true"] {
+  border-color: color-mix(in oklch, var(--accent) 45%, transparent);
+  background: var(--accent-soft); color: var(--accent-text); font-weight: 600;
 }
-.pos-total .tnum { font-size: 20px; }
 
 /* Toggle de vista (Formulario / Terminal POS) */
 .pos-view-toggle {
@@ -2255,7 +2335,7 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
     border-radius: 16px 16px 0 0;
     border-bottom: 0;
   }
-  .pos-ticket .pos-lines { max-height: none; } /* el drawer entero hace scroll */
+  .pos-ticket .pos-items { max-height: none; } /* el drawer entero hace scroll */
   .pos[data-ticket="open"] .pos-ticket { transform: translateY(0); }
 
   .pos-ticket-close {
@@ -2525,7 +2605,7 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
 .qty-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .venta-items input[type="number"], .qty-stepper input { -moz-appearance: textfield; appearance: textfield; }
 .qty-stepper { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
-.qty-stepper button { width: 28px; height: 32px; background: var(--bg-elev-1); color: var(--text); display: flex; align-items: center; justify-content: center; }
+.qty-stepper button { width: 28px; height: 32px; border: 0; background: var(--bg-elev-1); color: var(--text); display: flex; align-items: center; justify-content: center; }
 .qty-stepper button:hover:not(:disabled) { background: var(--bg-elev-2); }
 .qty-stepper button:disabled { opacity: .4; cursor: not-allowed; }
 .qty-stepper input { width: 42px; height: 32px; border: 0; border-left: 1px solid var(--border); border-right: 1px solid var(--border); background: transparent; text-align: center; color: var(--text); font-size: 13px; font-variant-numeric: tabular-nums; }

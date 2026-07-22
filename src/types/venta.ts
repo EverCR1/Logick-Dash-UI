@@ -99,6 +99,7 @@ export interface VentaItemPayload {
   cantidad: number
   descripcion: string
   precio_unitario: number
+  costo?: number | null
   descuento?: number
   producto_id?: number | null
   servicio_id?: number | null
