@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Loader2, Eye, Ban, X } from 'lucide-react'
+import { Loader2, Eye, Ban, X, List, LayoutGrid } from 'lucide-react'
 import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -11,11 +11,19 @@ import { Pagination } from '@/components/ui/Pagination'
 import { DetalleVenta } from './DetalleVenta'
 import { ESTADO_VENTA, METODO_LABEL, METODO_TONE } from './venta-estados'
 import { ventasApi } from '@/lib/api'
-import { useDebounce } from '@/lib/hooks'
+import { useDebounce, useAutoPageSize, vistaInicial } from '@/lib/hooks'
 import { q, fmtN, fmtFecha, fmtHora } from '@/lib/format'
 import type { Venta, VentaFiltros } from '@/types/venta'
 
 const PER_PAGE = 15
+
+type Vista = 'tabla' | 'cards'
+
+function tituloItems(v: Venta): string {
+  const items = v.detalles ?? []
+  if (!items.length) return ''
+  return items.slice(0, 6).map((d) => `${d.cantidad}× ${d.descripcion}`).join('\n') + (items.length > 6 ? `\n…y ${items.length - 6} más` : '')
+}
 
 export default function VentasPage() {
   const queryClient = useQueryClient()
@@ -24,10 +32,17 @@ export default function VentasPage() {
   const [estado, setEstado] = useState('todos')
   const [metodo, setMetodo] = useState('todos')
   const [sort, setSort] = useState<VentaFiltros['sort']>('fecha_desc')
+  const [vista, setVista] = useState<Vista>(() => vistaInicial('ventas_vista'))
   const [page, setPage] = useState(1)
   const navigate = useNavigate()
   const [verId, setVerId] = useState<number | null>(null)
   const [aCancelar, setACancelar] = useState<Venta | null>(null)
+
+  useEffect(() => { localStorage.setItem('ventas_vista', vista) }, [vista])
+
+  const { ref: cardsRef, perPage: autoPerPage } = useAutoPageSize({ rows: 3 })
+  const perPage = vista === 'cards' ? autoPerPage : PER_PAGE
+  useEffect(() => { setPage(1) }, [perPage])
 
   // Permite abrir el detalle de una venta desde otros módulos vía /ventas?ver=ID
   const [searchParams, setSearchParams] = useSearchParams()
@@ -44,7 +59,7 @@ export default function VentasPage() {
     search: searchDebounced || undefined,
     estado: estado !== 'todos' ? estado : undefined,
     metodo_pago: metodo !== 'todos' ? metodo : undefined,
-    sort, page, per_page: PER_PAGE,
+    sort, page, per_page: perPage,
   }
 
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
@@ -55,7 +70,13 @@ export default function VentasPage() {
 
   const cancelar = useMutation({
     mutationFn: (id: number) => ventasApi.cancelar(id),
-    onSuccess: () => { toast.success('Venta cancelada'); setACancelar(null); queryClient.invalidateQueries({ queryKey: ['ventas'] }) },
+    onSuccess: () => {
+      toast.success('Venta cancelada'); setACancelar(null)
+      // Cancelar revierte stock y crédito → afecta ingreso/ganancia reconocidos
+      for (const key of [['ventas'], ['dashboard'], ['dashboard-serie'], ['rep-resumen'], ['rep-ganancias'], ['creditos']]) {
+        queryClient.invalidateQueries({ queryKey: key })
+      }
+    },
     onError: () => toast.error('No se pudo cancelar la venta'),
   })
 
@@ -122,71 +143,74 @@ export default function VentasPage() {
             { value: 'total_asc', label: 'Menor total' },
           ]} />
         {hayFiltros && <button className="btn" onClick={limpiarFiltros} title="Limpiar filtros"><X size={15} /> Limpiar</button>}
+        <div className="view-toggle">
+          <button data-on={vista === 'tabla'} onClick={() => setVista('tabla')} title="Vista de tabla"><List /></button>
+          <button data-on={vista === 'cards'} onClick={() => setVista('cards')} title="Vista de tarjetas"><LayoutGrid /></button>
+        </div>
       </div>
 
-      <div className="card">
-        {isLoading ? (
-          <div className="empty" style={{ padding: 80 }}><Loader2 size={26} className="spin" style={{ color: 'var(--accent)' }} /><div>Cargando…</div></div>
-        ) : isError ? (
-          <div className="empty" style={{ padding: 80 }}><I.AlertCircle /><div>No se pudieron cargar las ventas</div>
-            <button className="btn" style={{ marginTop: 10 }} onClick={() => refetch()}><I.Refresh /> Reintentar</button></div>
-        ) : ventas.length === 0 ? (
-          <div className="empty" style={{ padding: 80 }}><I.Cart /><div>No se encontraron ventas</div></div>
-        ) : (
-          <>
-            <table className="tbl">
-              <thead><tr>
-                <th className="num" style={{ width: 48 }}>No.</th>
-                <th>N° Venta</th>
-                <th>Cliente</th>
-                <th className="num">Items</th>
-                <th className="num">Total</th>
-                <th>Método</th>
-                <th>Fecha</th>
-                <th>Estado</th>
-                <th style={{ width: 100, textAlign: 'right' }}>Acciones</th>
-              </tr></thead>
-              <tbody>
-                {ventas.map((v, i) => {
-                  const badge = ESTADO_VENTA[v.estado]
-                  const items = v.detalles ?? []
-                  const titulo = items.length
-                    ? items.slice(0, 6).map((d) => `${d.cantidad}× ${d.descripcion}`).join('\n') + (items.length > 6 ? `\n…y ${items.length - 6} más` : '')
-                    : ''
-                  return (
-                    <tr key={v.id} style={{ cursor: 'pointer' }} onClick={() => setVerId(v.id)}>
-                      <td className="num muted tnum">{(meta?.from ?? 1) + i}</td>
-                      <td style={{ fontWeight: 600, fontSize: 12 }}>{v.numero_venta}</td>
-                      <td>{v.cliente?.nombre ?? <span className="muted">Consumidor final</span>}</td>
-                      <td className="num">
-                        {items.length > 0
-                          ? <span className="badge" data-tone="info" title={titulo} style={{ cursor: 'help' }}><span className="b-dot" />{items.length} {items.length === 1 ? 'item' : 'items'}</span>
-                          : <span className="muted tnum">0</span>}
-                      </td>
-                      <td className="num tnum" style={{ fontWeight: 600 }}>{q(v.total)}</td>
-                      <td><span className="badge" data-tone={METODO_TONE[v.metodo_pago]}><span className="b-dot" />{METODO_LABEL[v.metodo_pago] ?? v.metodo_pago}</span></td>
-                      <td>
-                        <div style={{ fontSize: 12, fontWeight: 500 }}>{fmtFecha(v.created_at)}</div>
-                        <div className="muted" style={{ fontSize: 11 }}>{fmtHora(v.created_at)}</div>
-                      </td>
-                      <td><span className="badge" data-tone={badge.tone}><span className="b-dot" />{badge.label}</span></td>
-                      <td onClick={(e) => e.stopPropagation()}>
-                        <div className="row-actions">
-                          <button className="icon-action" data-variant="view" title="Ver detalle" onClick={() => setVerId(v.id)}><Eye /></button>
-                          {v.estado !== 'cancelada' && (
-                            <button className="icon-action" data-variant="delete" title="Cancelar venta" onClick={() => setACancelar(v)}><Ban /></button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-            {meta && <Pagination meta={meta} page={page} setPage={setPage} />}
-          </>
-        )}
-      </div>
+      {isLoading ? (
+        <div className="card"><div className="empty" style={{ padding: 80 }}><Loader2 size={26} className="spin" style={{ color: 'var(--accent)' }} /><div>Cargando…</div></div></div>
+      ) : isError ? (
+        <div className="card"><div className="empty" style={{ padding: 80 }}><I.AlertCircle /><div>No se pudieron cargar las ventas</div>
+          <button className="btn" style={{ marginTop: 10 }} onClick={() => refetch()}><I.Refresh /> Reintentar</button></div></div>
+      ) : ventas.length === 0 ? (
+        <div className="card"><div className="empty" style={{ padding: 80 }}><I.Cart /><div>No se encontraron ventas</div></div></div>
+      ) : vista === 'cards' ? (
+        <>
+          <div className="ccards" ref={cardsRef}>
+            {ventas.map((v) => (
+              <VentaCard key={v.id} venta={v} onVer={() => setVerId(v.id)} onCancelar={() => setACancelar(v)} />
+            ))}
+          </div>
+          {meta && meta.last_page > 1 && <div className="card"><Pagination meta={meta} page={page} setPage={setPage} /></div>}
+        </>
+      ) : (
+        <div className="card">
+          <table className="tbl">
+            <thead><tr>
+              <th className="num" style={{ width: 48 }}>No.</th>
+              <th>N° Venta</th>
+              <th>Cliente</th>
+              <th className="num">Items</th>
+              <th className="num">Total</th>
+              <th>Método</th>
+              <th>Fecha</th>
+              <th>Estado</th>
+              <th style={{ width: 100, textAlign: 'right' }}>Acciones</th>
+            </tr></thead>
+            <tbody>
+              {ventas.map((v, i) => {
+                const badge = ESTADO_VENTA[v.estado]
+                const items = v.detalles ?? []
+                return (
+                  <tr key={v.id} style={{ cursor: 'pointer' }} onClick={() => setVerId(v.id)}>
+                    <td className="num muted tnum">{(meta?.from ?? 1) + i}</td>
+                    <td style={{ fontWeight: 600, fontSize: 12 }}>{v.numero_venta}</td>
+                    <td>{v.cliente?.nombre ?? <span className="muted">Consumidor final</span>}</td>
+                    <td className="num">
+                      {items.length > 0
+                        ? <span className="badge" data-tone="info" title={tituloItems(v)} style={{ cursor: 'help' }}><span className="b-dot" />{items.length} {items.length === 1 ? 'item' : 'items'}</span>
+                        : <span className="muted tnum">0</span>}
+                    </td>
+                    <td className="num tnum" style={{ fontWeight: 600 }}>{q(v.total)}</td>
+                    <td><span className="badge" data-tone={METODO_TONE[v.metodo_pago]}><span className="b-dot" />{METODO_LABEL[v.metodo_pago] ?? v.metodo_pago}</span></td>
+                    <td>
+                      <div style={{ fontSize: 12, fontWeight: 500 }}>{fmtFecha(v.created_at)}</div>
+                      <div className="muted" style={{ fontSize: 11 }}>{fmtHora(v.created_at)}</div>
+                    </td>
+                    <td><span className="badge" data-tone={badge.tone}><span className="b-dot" />{badge.label}</span></td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <VentaAcciones cancelada={v.estado === 'cancelada'} onVer={() => setVerId(v.id)} onCancelar={() => setACancelar(v)} />
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          {meta && <Pagination meta={meta} page={page} setPage={setPage} />}
+        </div>
+      )}
 
       <DetalleVenta open={verId !== null} onClose={cerrarDetalle} ventaId={verId} />
 
@@ -195,5 +219,49 @@ export default function VentasPage() {
         confirmLabel="Cancelar venta" danger loading={cancelar.isPending}
         onConfirm={() => aCancelar && cancelar.mutate(aCancelar.id)} />
     </>
+  )
+}
+
+// ── Acciones compartidas (tabla y card) ───────────────────────────────────────
+
+function VentaAcciones({ cancelada, onVer, onCancelar }: { cancelada: boolean; onVer: () => void; onCancelar: () => void }) {
+  return (
+    <div className="row-actions">
+      <button className="icon-action" data-variant="view" title="Ver detalle" onClick={onVer}><Eye /></button>
+      {!cancelada && (
+        <button className="icon-action" data-variant="delete" title="Cancelar venta" onClick={onCancelar}><Ban /></button>
+      )}
+    </div>
+  )
+}
+
+// ── Tarjeta de venta ──────────────────────────────────────────────────────────
+
+function VentaCard({ venta: v, onVer, onCancelar }: { venta: Venta; onVer: () => void; onCancelar: () => void }) {
+  const badge = ESTADO_VENTA[v.estado]
+  const items = v.detalles ?? []
+  return (
+    <div className="ccard" onClick={onVer}>
+      <div className="rc-head">
+        <div style={{ minWidth: 0 }}>
+          <div className="rc-title">{v.numero_venta}</div>
+          <div className="rc-sub">{v.cliente?.nombre ?? 'Consumidor final'}</div>
+        </div>
+        <span className="badge" data-tone={badge.tone}><span className="b-dot" />{badge.label}</span>
+      </div>
+
+      <div className="rc-body">
+        <div className="rc-line"><span className="lbl">Total</span><span className="val tnum" style={{ fontSize: 14 }}>{q(v.total)}</span></div>
+        <div className="rc-line"><span className="lbl">Items</span>
+          <span className="val" title={tituloItems(v)} style={{ cursor: items.length ? 'help' : 'default' }}>{items.length} {items.length === 1 ? 'item' : 'items'}</span>
+        </div>
+        <div className="rc-line"><span className="lbl">Fecha</span><span className="val">{fmtFecha(v.created_at)} · {fmtHora(v.created_at)}</span></div>
+      </div>
+
+      <div className="rc-foot" onClick={(e) => e.stopPropagation()}>
+        <span className="badge" data-tone={METODO_TONE[v.metodo_pago]}><span className="b-dot" />{METODO_LABEL[v.metodo_pago] ?? v.metodo_pago}</span>
+        <VentaAcciones cancelada={v.estado === 'cancelada'} onVer={onVer} onCancelar={onCancelar} />
+      </div>
+    </div>
   )
 }

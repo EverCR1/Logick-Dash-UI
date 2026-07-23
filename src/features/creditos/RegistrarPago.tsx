@@ -53,7 +53,11 @@ export function RegistrarPago({ open, onClose, credito }: { open: boolean; onClo
     }),
     onSuccess: () => {
       toast.success('Pago registrado')
-      queryClient.invalidateQueries({ queryKey: ['creditos'] })
+      // Un abono ahora afecta el ingreso/ganancia reconocidos (criterio de caja):
+      // refrescar todo lo que muestra esas cifras, no solo los créditos.
+      for (const key of [['creditos'], ['credito'], ['dashboard'], ['dashboard-serie'], ['ventas'], ['rep-resumen'], ['rep-ganancias']]) {
+        queryClient.invalidateQueries({ queryKey: key })
+      }
       onClose()
     },
     onError: (err) => {
@@ -128,7 +132,9 @@ export function RegistrarPago({ open, onClose, credito }: { open: boolean; onClo
                 <label>Montos rápidos</label>
                 <div className="pago-rapidos">
                   {rapidos.map(({ p, m }) => (
-                    <button type="button" key={p} className="pago-rapido" data-total={p === 100} onClick={() => aplicarRapido(m)}>
+                    <button type="button" key={p} className="pago-rapido"
+                      data-on={Math.abs((parseFloat(monto) || 0) - m) < 0.01}
+                      onClick={() => aplicarRapido(m)}>
                       {p === 100 ? 'Total' : `${p}%`} — {q(m)}
                     </button>
                   ))}

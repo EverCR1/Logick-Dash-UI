@@ -1,6 +1,17 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import type { PageMeta } from '@/components/ui/Pagination'
 
+/**
+ * Vista inicial 'tabla' | 'cards' para los listados: respeta la preferencia
+ * guardada; si no hay, usa cards en pantallas chicas (móvil) donde la tabla
+ * es difícil de navegar, y tabla en pantallas grandes.
+ */
+export function vistaInicial(key: string): 'tabla' | 'cards' {
+  const saved = localStorage.getItem(key)
+  if (saved === 'tabla' || saved === 'cards') return saved
+  return typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches ? 'cards' : 'tabla'
+}
+
 /** Devuelve el valor tras `delay` ms sin cambios. Útil para búsquedas. */
 export function useDebounce<T>(value: T, delay = 350): T {
   const [debounced, setDebounced] = useState(value)

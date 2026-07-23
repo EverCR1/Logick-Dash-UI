@@ -36,7 +36,13 @@ export default function CreditoDetalle() {
 
   const eliminar = useMutation({
     mutationFn: () => creditosApi.eliminar(Number(id)),
-    onSuccess: () => { toast.success('Crédito eliminado'); queryClient.invalidateQueries({ queryKey: ['creditos'] }); navigate('/creditos') },
+    onSuccess: () => {
+      toast.success('Crédito eliminado')
+      for (const key of [['creditos'], ['dashboard'], ['dashboard-serie'], ['ventas'], ['rep-resumen'], ['rep-ganancias']]) {
+        queryClient.invalidateQueries({ queryKey: key })
+      }
+      navigate('/creditos')
+    },
     onError: () => toast.error('No se pudo eliminar el crédito'),
   })
 
@@ -79,8 +85,8 @@ export default function CreditoDetalle() {
             <span className="profile-name">{credito.nombre_cliente}</span>
             <span className="badge" data-tone={badge.tone}><span className="b-dot" />{badge.label}</span>
             {credito.venta_id && (
-              <Link to={`/ventas?ver=${credito.venta_id}`} className="role-badge" data-role="vendedor" title="Ver venta vinculada">
-                <Receipt />Venta #{credito.venta_id}
+              <Link to={`/ventas?ver=${credito.venta_id}`} className="link-venta" title="Ver venta vinculada">
+                <Receipt size={12} /> Venta #{credito.venta_id}
               </Link>
             )}
           </div>

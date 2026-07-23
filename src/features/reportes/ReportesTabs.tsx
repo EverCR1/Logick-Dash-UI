@@ -499,7 +499,7 @@ export function TabGanancias({ desde, hasta }: RangoProps) {
   const exportData: ReporteExportData | null = r ? {
     titulo: 'Reporte de ganancias', rango: rangoTxt(desde, hasta),
     kpis: [{ label: 'Ingresos', value: q(r.ingresos_totales) }, { label: 'Costos', value: q(r.costos_totales) }, { label: 'Ganancia neta', value: q(r.ganancia_neta) }, { label: 'Margen', value: pct(r.margen_porcentaje) }, { label: 'Items', value: fmtN(r.items_vendidos) }],
-    tablas: [{ titulo: 'Ganancia por item', columnas: [{ label: 'No.' }, { label: 'Item' }, { label: 'Tipo' }, { label: 'Unid.', align: 'right' }, { label: 'Ingresos', align: 'right' }, { label: 'Costo', align: 'right' }, { label: 'Ganancia', align: 'right' }, { label: 'Margen', align: 'right' }],
+    tablas: [{ titulo: 'Ganancia por item', columnas: [{ label: 'No.' }, { label: 'Item' }, { label: 'Tipo' }, { label: 'Unid. cobradas', align: 'right' }, { label: 'Ingresos', align: 'right' }, { label: 'Costo', align: 'right' }, { label: 'Ganancia', align: 'right' }, { label: 'Margen', align: 'right' }],
       filas: items.map((it, i) => [i + 1, it.nombre, it.tipo, fmtN(it.unidades), q(it.ingresos), q(it.costo_total), q(it.ganancia), pct(it.margen)]) }],
   } : null
   return (
@@ -531,14 +531,14 @@ export function TabGanancias({ desde, hasta }: RangoProps) {
                     <div className="gan-tipo-row"><span className="muted">Ingresos</span><span className="tnum">{q(v.ingresos)}</span></div>
                     <div className="gan-tipo-row"><span className="muted">Costos</span><span className="tnum">{q(v.costos)}</span></div>
                     <div className="gan-tipo-row" style={{ fontWeight: 700, color: 'var(--pos)' }}><span>Ganancia</span><span className="tnum">{q(v.ganancia)}</span></div>
-                    <div className="muted" style={{ fontSize: 11.5 }}>{fmtN(v.unidades)} unidades</div>
+                    <div className="muted" style={{ fontSize: 11.5 }} title="Unidades según lo cobrado: completas en contado, proporcionales al % pagado en crédito">{fmtN(v.unidades)} unid. cobradas</div>
                   </div>
                 ))}
               </div>
             )}
             <Bloque titulo="Ganancia por item" icon={CircleDollarSign}>
               <table className="tbl">
-                <thead><tr><th className="num" style={{ width: 48 }}>No.</th><th>Item</th><th>Tipo</th><th className="num">Unidades</th><th className="num">Ingresos</th><th className="num">Costo</th><th className="num">Ganancia</th><th className="num">Margen</th></tr></thead>
+                <thead><tr><th className="num" style={{ width: 48 }}>No.</th><th>Item</th><th>Tipo</th><th className="num" title="Unidades según lo cobrado: completas en contado, proporcionales al % pagado en crédito">Unid. cobradas</th><th className="num">Ingresos</th><th className="num">Costo</th><th className="num">Ganancia</th><th className="num">Margen</th></tr></thead>
                 <tbody>
                   {slice.map((it, i) => (
                     <tr key={i}>

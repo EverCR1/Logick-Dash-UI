@@ -213,7 +213,10 @@ export default function NuevaVenta() {
     },
     onSuccess: (venta) => {
       toast.success(`Venta ${venta.numero_venta} registrada`)
-      queryClient.invalidateQueries({ queryKey: ['ventas'] })
+      // Refresca todo lo que muestra ingreso/ganancia reconocidos
+      for (const key of [['ventas'], ['dashboard'], ['dashboard-serie'], ['rep-resumen'], ['rep-ganancias']]) {
+        queryClient.invalidateQueries({ queryKey: key })
+      }
       navigate('/ventas')
     },
     onError: (err) => {

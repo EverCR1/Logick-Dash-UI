@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
-import { Loader2, Eye, X } from 'lucide-react'
+import { Loader2, Eye, X, List, LayoutGrid, User } from 'lucide-react'
 import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -8,23 +8,32 @@ import { Pagination } from '@/components/ui/Pagination'
 import { DetallePedido } from './DetallePedido'
 import { ESTADO_PEDIDO } from './pedido-estados'
 import { pedidosTiendaApi } from '@/lib/api'
-import { useDebounce } from '@/lib/hooks'
+import { useDebounce, useAutoPageSize, vistaInicial } from '@/lib/hooks'
 import { q, fmtN, fmtFecha } from '@/lib/format'
-import type { PedidoFiltros } from '@/types/pedido'
+import type { Pedido, PedidoFiltros } from '@/types/pedido'
 
 const PER_PAGE = 15
+
+type Vista = 'tabla' | 'cards'
 
 export default function PedidosPage() {
   const [search, setSearch] = useState('')
   const searchDebounced = useDebounce(search)
   const [estado, setEstado] = useState('todos')
+  const [vista, setVista] = useState<Vista>(() => vistaInicial('pedidos_vista'))
   const [page, setPage] = useState(1)
   const [verId, setVerId] = useState<number | null>(null)
+
+  useEffect(() => { localStorage.setItem('pedidos_vista', vista) }, [vista])
+
+  const { ref: cardsRef, perPage: autoPerPage } = useAutoPageSize({ rows: 4 })
+  const perPage = vista === 'cards' ? autoPerPage : PER_PAGE
+  useEffect(() => { setPage(1) }, [perPage])
 
   const filtros: PedidoFiltros = {
     search: searchDebounced || undefined,
     estado: estado !== 'todos' ? estado : undefined,
-    page, per_page: PER_PAGE,
+    page, per_page: perPage,
   }
 
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
@@ -82,60 +91,99 @@ export default function PedidosPage() {
             { value: 'cancelado', label: 'Cancelado' },
           ]} />
         {hayFiltros && <button className="btn" onClick={limpiarFiltros} title="Limpiar filtros"><X size={15} /> Limpiar</button>}
+        <div className="view-toggle">
+          <button data-on={vista === 'tabla'} onClick={() => setVista('tabla')} title="Vista de tabla"><List /></button>
+          <button data-on={vista === 'cards'} onClick={() => setVista('cards')} title="Vista de tarjetas"><LayoutGrid /></button>
+        </div>
       </div>
 
-      <div className="card">
-        {isLoading ? (
-          <div className="empty" style={{ padding: 80 }}><Loader2 size={26} className="spin" style={{ color: 'var(--accent)' }} /><div>Cargando…</div></div>
-        ) : isError ? (
-          <div className="empty" style={{ padding: 80 }}><I.AlertCircle /><div>No se pudieron cargar los pedidos</div>
-            <button className="btn" style={{ marginTop: 10 }} onClick={() => refetch()}><I.Refresh /> Reintentar</button></div>
-        ) : pedidos.length === 0 ? (
-          <div className="empty" style={{ padding: 80 }}><I.Store /><div>No se encontraron pedidos</div></div>
-        ) : (
-          <>
-            <table className="tbl">
-              <thead><tr>
-                <th className="num" style={{ width: 48 }}>No.</th>
-                <th>N° Pedido</th>
-                <th>Cliente</th>
-                <th className="num">Total</th>
-                <th>Método</th>
-                <th>Fecha</th>
-                <th>Estado</th>
-                <th style={{ width: 70, textAlign: 'right' }}>Ver</th>
-              </tr></thead>
-              <tbody>
-                {pedidos.map((p, i) => {
-                  const badge = ESTADO_PEDIDO[p.estado]
-                  return (
-                    <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => setVerId(p.id)}>
-                      <td className="num muted tnum">{(meta?.from ?? 1) + i}</td>
-                      <td style={{ fontWeight: 600, fontSize: 12 }}>{p.numero_pedido}</td>
-                      <td>
-                        <div style={{ fontSize: 12.5 }}>{p.nombre}</div>
-                        {p.email && <div className="muted" style={{ fontSize: 11 }}>{p.email}</div>}
-                      </td>
-                      <td className="num tnum" style={{ fontWeight: 600 }}>{q(p.total)}</td>
-                      <td className="muted" style={{ fontSize: 12, textTransform: 'capitalize' }}>{(p.metodo_pago ?? '—').replace('_', ' ')}</td>
-                      <td className="muted" style={{ fontSize: 12 }}>{fmtFecha(p.created_at)}</td>
-                      <td><span className="badge" data-tone={badge.tone}><span className="b-dot" />{badge.label}</span></td>
-                      <td onClick={(e) => e.stopPropagation()}>
-                        <div className="row-actions">
-                          <button className="icon-action" data-variant="view" title="Ver detalle" onClick={() => setVerId(p.id)}><Eye /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-            {meta && <Pagination meta={meta} page={page} setPage={setPage} />}
-          </>
-        )}
-      </div>
+      {isLoading ? (
+        <div className="card"><div className="empty" style={{ padding: 80 }}><Loader2 size={26} className="spin" style={{ color: 'var(--accent)' }} /><div>Cargando…</div></div></div>
+      ) : isError ? (
+        <div className="card"><div className="empty" style={{ padding: 80 }}><I.AlertCircle /><div>No se pudieron cargar los pedidos</div>
+          <button className="btn" style={{ marginTop: 10 }} onClick={() => refetch()}><I.Refresh /> Reintentar</button></div></div>
+      ) : pedidos.length === 0 ? (
+        <div className="card"><div className="empty" style={{ padding: 80 }}><I.Store /><div>No se encontraron pedidos</div></div></div>
+      ) : vista === 'cards' ? (
+        <>
+          <div className="ccards" ref={cardsRef}>
+            {pedidos.map((p) => <PedidoCard key={p.id} pedido={p} onVer={() => setVerId(p.id)} />)}
+          </div>
+          {meta && meta.last_page > 1 && <div className="card"><Pagination meta={meta} page={page} setPage={setPage} /></div>}
+        </>
+      ) : (
+        <div className="card">
+          <table className="tbl">
+            <thead><tr>
+              <th className="num" style={{ width: 48 }}>No.</th>
+              <th>N° Pedido</th>
+              <th>Cliente</th>
+              <th className="num">Total</th>
+              <th>Método</th>
+              <th>Fecha</th>
+              <th>Estado</th>
+              <th style={{ width: 70, textAlign: 'right' }}>Ver</th>
+            </tr></thead>
+            <tbody>
+              {pedidos.map((p, i) => {
+                const badge = ESTADO_PEDIDO[p.estado]
+                return (
+                  <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => setVerId(p.id)}>
+                    <td className="num muted tnum">{(meta?.from ?? 1) + i}</td>
+                    <td style={{ fontWeight: 600, fontSize: 12 }}>{p.numero_pedido}</td>
+                    <td>
+                      <div style={{ fontSize: 12.5 }}>{p.nombre}</div>
+                      {p.email && <div className="muted" style={{ fontSize: 11 }}>{p.email}</div>}
+                    </td>
+                    <td className="num tnum" style={{ fontWeight: 600 }}>{q(p.total)}</td>
+                    <td className="muted" style={{ fontSize: 12, textTransform: 'capitalize' }}>{(p.metodo_pago ?? '—').replace('_', ' ')}</td>
+                    <td className="muted" style={{ fontSize: 12 }}>{fmtFecha(p.created_at)}</td>
+                    <td><span className="badge" data-tone={badge.tone}><span className="b-dot" />{badge.label}</span></td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <div className="row-actions">
+                        <button className="icon-action" data-variant="view" title="Ver detalle" onClick={() => setVerId(p.id)}><Eye /></button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          {meta && <Pagination meta={meta} page={page} setPage={setPage} />}
+        </div>
+      )}
 
       <DetallePedido open={verId !== null} onClose={() => setVerId(null)} pedidoId={verId} />
     </>
+  )
+}
+
+// ── Tarjeta de pedido ─────────────────────────────────────────────────────────
+
+function PedidoCard({ pedido: p, onVer }: { pedido: Pedido; onVer: () => void }) {
+  const badge = ESTADO_PEDIDO[p.estado]
+  return (
+    <div className="ccard" onClick={onVer}>
+      <div className="rc-head">
+        <div style={{ minWidth: 0 }}>
+          <div className="rc-title">{p.numero_pedido}</div>
+          <div className="rc-sub">{p.nombre}</div>
+        </div>
+        <span className="badge" data-tone={badge.tone}><span className="b-dot" />{badge.label}</span>
+      </div>
+
+      <div className="rc-body">
+        <div className="rc-line"><span className="lbl">Total</span><span className="val tnum">{q(p.total)}</span></div>
+        <div className="rc-line"><span className="lbl">Método</span><span className="val" style={{ textTransform: 'capitalize' }}>{(p.metodo_pago ?? '—').replace('_', ' ')}</span></div>
+        <div className="rc-line"><span className="lbl">Fecha</span><span className="val">{fmtFecha(p.created_at)}</span></div>
+      </div>
+
+      <div className="rc-foot" onClick={(e) => e.stopPropagation()}>
+        <span className="rc-who"><User />{p.email || 'Cliente'}</span>
+        <div className="row-actions">
+          <button className="icon-action" data-variant="view" title="Ver detalle" onClick={onVer}><Eye /></button>
+        </div>
+      </div>
+    </div>
   )
 }
