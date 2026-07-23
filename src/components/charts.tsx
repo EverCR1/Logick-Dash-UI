@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 
 type Point = [number, number]
 
@@ -80,8 +80,22 @@ interface AreaChartProps {
 export function AreaChart({ data, height = 240, accent = 'var(--accent)', secondary = 'var(--info)' }: AreaChartProps) {
   const [hover, setHover] = useState<number | null>(null)
   const svgRef = useRef<SVGSVGElement>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
 
-  const W = 800
+  // El ancho del viewBox sigue al ancho real del contenedor: así el SVG llena el
+  // espacio (sin letterboxing por preserveAspectRatio) y las coordenadas mapean 1:1,
+  // dejando el tooltip y los puntos exactamente donde deben, también en pantallas anchas.
+  const [W, setW] = useState(800)
+  useLayoutEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const update = () => setW(Math.max(320, Math.round(el.clientWidth)))
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   const H = height
   const padL = 40
   const padR = 12
@@ -125,7 +139,7 @@ export function AreaChart({ data, height = 240, accent = 'var(--accent)', second
   }
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div ref={wrapRef} style={{ position: 'relative' }}>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
@@ -173,7 +187,12 @@ export function AreaChart({ data, height = 240, accent = 'var(--accent)', second
             position: 'absolute',
             left: `${(xOf(hover) / W) * 100}%`,
             top: 8,
-            transform: 'translateX(-50%)',
+            // Anclar según la posición para que no se corte en los extremos:
+            // centrado en el medio, pero pegado al punto cerca de los bordes.
+            transform: (() => {
+              const p = (xOf(hover) / W) * 100
+              return p <= 15 ? 'translateX(0)' : p >= 85 ? 'translateX(-100%)' : 'translateX(-50%)'
+            })(),
             background: 'var(--bg-elev-1)',
             border: '1px solid var(--border)',
             borderRadius: 8,
