@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Loader2, Search, Plus, X } from 'lucide-react'
+import { Loader2, Search, Plus, X, AlertCircle } from 'lucide-react'
 import { productosApi } from '@/lib/api'
 import { useDebounce } from '@/lib/hooks'
 import { q as money } from '@/lib/format'
@@ -25,6 +25,10 @@ export function VincularEnCreacion({ seleccionados, onChange }: {
   const yaElegidos = new Set(seleccionados.map((p) => p.id))
   const candidatos = resultados.filter((p) => !yaElegidos.has(p.id))
 
+  // Grupos distintos ya representados en la cola: si hay más de uno, al guardar se
+  // fusionan. Se avisa aquí porque nada se aplica hasta entonces (y se puede quitar).
+  const gruposEnCola = [...new Set(seleccionados.map((p) => p.grupo_variante).filter(Boolean) as string[])]
+
   const agregar = (p: Producto) => { onChange([...seleccionados, p]); setSearch('') }
   const quitar = (id: number) => onChange(seleccionados.filter((p) => p.id !== id))
 
@@ -36,6 +40,7 @@ export function VincularEnCreacion({ seleccionados, onChange }: {
       <div className="vinc-title">Vincular otros productos a este grupo</div>
       <div className="muted" style={{ fontSize: 11.5 }}>
         Se agruparán con este producto al guardar. No se modifica nada hasta entonces.
+        Si el producto ya pertenece a un grupo, se une con todas sus variantes.
       </div>
 
       {seleccionados.length > 0 && (
@@ -45,11 +50,24 @@ export function VincularEnCreacion({ seleccionados, onChange }: {
               <span className="vinc-thumb">{thumb(p) ? <img src={thumb(p)} alt="" /> : null}</span>
               <div className="vinc-info">
                 <div className="vinc-name">{p.nombre}</div>
-                <div className="muted" style={{ fontSize: 11.5 }}>{p.sku}{p.grupo_variante ? ` · cambiará del grupo ${p.grupo_variante}` : ''}</div>
+                <div className="muted" style={{ fontSize: 11.5 }}>
+                  {p.sku}
+                  {p.grupo_variante && <> · se unirá <b>con todo su grupo</b> ({p.grupo_variante})</>}
+                </div>
               </div>
               <button type="button" className="icon-action" data-variant="delete" title="Quitar de la lista" onClick={() => quitar(p.id)}><X size={15} /></button>
             </div>
           ))}
+        </div>
+      )}
+
+      {gruposEnCola.length > 1 && (
+        <div className="vinc-aviso">
+          <AlertCircle size={14} />
+          <span>
+            Estás uniendo <b>{gruposEnCola.length} grupos distintos</b> ({gruposEnCola.join(', ')}). Al guardar,
+            todos sus productos quedarán como variantes entre sí. Si no es lo que quieres, quita los que sobren.
+          </span>
         </div>
       )}
 

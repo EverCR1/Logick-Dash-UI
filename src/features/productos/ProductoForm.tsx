@@ -12,6 +12,7 @@ import { CrearCategoriaRapida } from './CrearCategoriaRapida'
 import { VariantesVinculadas } from './VariantesVinculadas'
 import { CopiarVariante } from './CopiarVariante'
 import { VincularEnCreacion } from './VincularEnCreacion'
+import { grupoDestino, moverAlGrupo } from './variantes-utils'
 import { productosApi, catalogosApi } from '@/lib/api'
 import { generarSkuDesdeNombre } from '@/lib/sku'
 import type { Producto, ProductoAtributo } from '@/types/producto'
@@ -170,9 +171,12 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
 
   const guardar = useMutation({
     mutationFn: async () => {
-      // Grupo final: el copiado/existente, o uno nuevo si hay productos en cola para vincular
+      // Grupo final: el copiado/existente; si no, el de algún producto en cola que ya
+      // pertenezca a un grupo (para no romperlo); y si ninguno tiene, uno nuevo.
       const grupoFinal = tieneVariantes
-        ? (grupoVariante || (!editar && aVincular.length > 0 ? `grupo-${form.sku.trim() || Date.now()}` : null))
+        ? (grupoVariante || (!editar && aVincular.length > 0
+            ? grupoDestino(aVincular, `grupo-${form.sku.trim() || Date.now()}`)
+            : null))
         : null
       const payload = {
         sku: form.sku.trim(),
@@ -209,9 +213,9 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
         const elegida = subidas[principalIdx] ?? subidas[0]
         if (elegida) await productosApi.imagenPrincipal(creado.id, elegida.id)
       }
-      // Vincular los productos en cola al mismo grupo
+      // Vincular los productos en cola al mismo grupo (arrastrando a sus hermanos si ya tenían grupo)
       if (grupoFinal && aVincular.length > 0) {
-        await Promise.all(aVincular.map((p) => productosApi.vincularGrupo(p.id, grupoFinal)))
+        await Promise.all(aVincular.map((p) => moverAlGrupo(p, grupoFinal)))
       }
       return creado
     },

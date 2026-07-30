@@ -5,6 +5,8 @@ import { Loader2, Link2, Link2Off, Search } from 'lucide-react'
 import { productosApi } from '@/lib/api'
 import { useDebounce } from '@/lib/hooks'
 import { q as money } from '@/lib/format'
+import { fusionarGrupos, hermanosDe } from './variantes-utils'
+import { ConfirmarVinculo, type ModoVinculo } from './ConfirmarVinculo'
 import type { Producto } from '@/types/producto'
 
 /**
@@ -17,6 +19,7 @@ export function VariantesVinculadas({ productoId, sku, grupo, onGrupoChange }: {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const searchDeb = useDebounce(search)
+  const [confirmar, setConfirmar] = useState<{ candidato: Producto; hermanos: Producto[] } | null>(null)
 
   const { data: miembros = [], isFetching: cargandoMiembros } = useQuery({
     queryKey: ['variantes-grupo', grupo],
@@ -37,15 +40,46 @@ export function VariantesVinculadas({ productoId, sku, grupo, onGrupoChange }: {
   }
 
   const vincular = useMutation({
-    mutationFn: async (otroId: number) => {
+    mutationFn: async ({ otro, modo }: { otro: Producto; modo: ModoVinculo }) => {
+      // Fusionar sin grupo propio: adoptamos el del candidato y no se mueve a nadie,
+      // así el grupo existente conserva su identidad.
+      if (modo === 'fusionar' && !grupo && otro.grupo_variante) {
+        await productosApi.vincularGrupo(productoId, otro.grupo_variante)
+        return otro.grupo_variante
+      }
+
       let g = grupo
-      if (!g) { g = `grupo-${sku || productoId}`; await productosApi.vincularGrupo(productoId, g) }
-      await productosApi.vincularGrupo(otroId, g)
+      if (!g) {
+        g = `grupo-${sku || productoId}`
+        await productosApi.vincularGrupo(productoId, g)
+      }
+
+      if (modo === 'fusionar' && otro.grupo_variante) {
+        await fusionarGrupos(otro.grupo_variante, g)
+      } else {
+        // 'solo': se mueve únicamente el candidato; sus hermanos quedan en su grupo
+        await productosApi.vincularGrupo(otro.id, g)
+      }
       return g
     },
-    onSuccess: (g) => { toast.success('Producto vinculado'); onGrupoChange(g); refrescar() },
+    onSuccess: (g) => {
+      toast.success('Producto vinculado'); onGrupoChange(g); refrescar(); setConfirmar(null)
+    },
     onError: () => toast.error('No se pudo vincular el producto'),
   })
+
+  // Solo se pregunta si el candidato ya está en un grupo CON hermanos: ahí "traerlo
+  // solo" y "fusionar los grupos" dan resultados distintos y la intención no es inferible.
+  const pedirVinculo = async (otro: Producto) => {
+    if (!otro.grupo_variante) { vincular.mutate({ otro, modo: 'solo' }); return }
+    try {
+      const hermanos = await hermanosDe(otro.grupo_variante, otro.id)
+      if (hermanos.length === 0) { vincular.mutate({ otro, modo: 'solo' }); return }
+      setConfirmar({ candidato: otro, hermanos })
+    } catch {
+      toast.error('No se pudo revisar el grupo del producto')
+    }
+  }
 
   const desvincular = useMutation({
     mutationFn: (otroId: number) => productosApi.vincularGrupo(otroId, null),
@@ -109,11 +143,19 @@ export function VariantesVinculadas({ productoId, sku, grupo, onGrupoChange }: {
                 <div className="vinc-name">{p.nombre}</div>
                 <div className="muted" style={{ fontSize: 11.5 }}>{p.sku}{p.grupo_variante ? ` · ya en grupo ${p.grupo_variante}` : ''}</div>
               </div>
-              <button type="button" className="btn btn-sm" disabled={ocupado} onClick={() => vincular.mutate(p.id)}><Link2 size={13} /> Vincular</button>
+              <button type="button" className="btn btn-sm" disabled={ocupado} onClick={() => pedirVinculo(p)}><Link2 size={13} /> Vincular</button>
             </div>
           ))}
         </div>
       )}
+
+      <ConfirmarVinculo
+        candidato={confirmar?.candidato ?? null}
+        hermanos={confirmar?.hermanos ?? []}
+        loading={vincular.isPending}
+        onElegir={(modo) => confirmar && vincular.mutate({ otro: confirmar.candidato, modo })}
+        onCancelar={() => setConfirmar(null)}
+      />
     </div>
   )
 }
