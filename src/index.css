@@ -635,6 +635,13 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
   gap: 8px;
 }
 .section-title .line { flex: 1; height: 1px; background: var(--border); }
+/* Rango activo junto al título: deja claro qué periodo cubren los KPIs */
+.section-rango {
+  text-transform: none; letter-spacing: 0;
+  font-size: 11px; font-weight: 500;
+  padding: 1px 8px; border-radius: 999px;
+  background: var(--bg-elev-2); color: var(--text-muted);
+}
 
 /* ============================================================
    KPI cards (hero + secondary)

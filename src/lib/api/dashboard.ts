@@ -9,11 +9,17 @@ export const dashboardApi = {
     return data
   },
 
-  serieVentas: async (rango: RangoSerie): Promise<DashboardData['serie_ventas']> => {
-    const { data } = await apiClient.get<{ success: boolean; serie_ventas: DashboardData['serie_ventas'] }>(
-      '/dashboard/serie-ventas',
-      { params: { rango } },
-    )
-    return data.serie_ventas
+  // Devuelve la serie del gráfico y la rentabilidad del MISMO rango: el selector
+  // mueve ambos a la vez porque el usuario los ve juntos en pantalla.
+  serieVentas: async (rango: RangoSerie): Promise<{
+    serie_ventas: DashboardData['serie_ventas']
+    rentabilidad: DashboardData['rentabilidad']
+  }> => {
+    const { data } = await apiClient.get<{
+      success: boolean
+      serie_ventas: DashboardData['serie_ventas']
+      rentabilidad: DashboardData['rentabilidad']
+    }>('/dashboard/serie-ventas', { params: { rango } })
+    return { serie_ventas: data.serie_ventas, rentabilidad: data.rentabilidad }
   },
 }

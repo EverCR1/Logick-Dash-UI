@@ -12,6 +12,14 @@ import type { DashboardData, Rentabilidad } from '@/types/dashboard'
 type Tone = 'accent' | 'info' | 'violet' | 'warn' | 'pos' | 'neg'
 type RentaVista = 'productos' | 'servicios' | 'total'
 
+/** Etiqueta del rango activo; deja explícito qué periodo cubren los KPIs. */
+const RANGO_LABEL: Record<RangoSerie, string> = {
+  '7d': 'últimos 7 días',
+  '30d': 'últimos 30 días',
+  '90d': 'últimos 90 días',
+  '1y': 'último año',
+}
+
 const METODO_INFO: Record<string, { label: string; icon: IconName }> = {
   efectivo: { label: 'Efectivo', icon: 'Cash' },
   tarjeta: { label: 'Tarjeta', icon: 'Card' },
@@ -124,7 +132,7 @@ const RENTA_OPC: { v: RentaVista; l: string }[] = [
   { v: 'productos', l: 'Prod' }, { v: 'servicios', l: 'Serv' }, { v: 'total', l: 'Todo' },
 ]
 
-function RentabilidadRow({ r }: { r: Rentabilidad }) {
+function RentabilidadRow({ r, rango, fetching }: { r: Rentabilidad; rango: RangoSerie; fetching?: boolean }) {
   const [vista, setVista] = useState<RentaVista>(() => (localStorage.getItem('dash_renta_vista') as RentaVista) || 'total')
   useEffect(() => { localStorage.setItem('dash_renta_vista', vista) }, [vista])
   const b = r[vista]
@@ -133,17 +141,18 @@ function RentabilidadRow({ r }: { r: Rentabilidad }) {
     <>
       <div className="section-title">
         <I.TrendUp size={13} /><span>Rentabilidad</span>
+        <span className="section-rango">{RANGO_LABEL[rango]}</span>
         <div className="line" />
         <SegToggle value={vista} onChange={setVista} options={RENTA_OPC} />
       </div>
-      <div className="row-3">
+      <div className="row-3" style={{ opacity: fetching ? 0.6 : 1, transition: 'opacity .15s' }}>
         <div className="kpi">
           <div className="kpi-row1">
             <div className="kpi-label">Margen de ganancia</div>
             <div className="kpi-icon" data-tone="accent"><I.Activity /></div>
           </div>
           <div className="kpi-value tnum">{fmtN(b.margen_pct)}<span className="kpi-unit">%</span></div>
-          <div className="kpi-meta"><Delta value={b.margen_delta_pts} unit=" pts" /><span>vs. mes anterior</span></div>
+          <div className="kpi-meta"><Delta value={b.margen_delta_pts} unit=" pts" /><span>vs. periodo anterior</span></div>
         </div>
 
         <div className="kpi">
@@ -264,16 +273,43 @@ function RentabilidadPorItem({ r }: { r: Rentabilidad }) {
 
 // ── Sales chart ───────────────────────────────────────────────────────────────
 
-function SalesChartCard({ initial }: { initial: DashboardData['serie_ventas'] }) {
+/**
+ * Agrupa lo que depende del selector de rango: la gráfica y los KPIs de rentabilidad.
+ * El estado vive aquí (y no dentro de la gráfica) para que ambos se muevan juntos,
+ * que es lo que el usuario espera al verlos en la misma pantalla.
+ */
+function BloqueRango({ d }: { d: DashboardData }) {
   const [range, setRange] = useState<RangoSerie>('30d')
-  const { data: sv = initial, isFetching } = useQuery({
+  const { data, isFetching } = useQuery({
     queryKey: ['dashboard-serie', range],
     queryFn: () => dashboardApi.serieVentas(range),
-    initialData: range === '30d' ? initial : undefined,
+    // El índice del dashboard ya trae el rango por defecto: evita repetir la petición
+    initialData: range === '30d' ? { serie_ventas: d.serie_ventas, rentabilidad: d.rentabilidad } : undefined,
     placeholderData: (prev) => prev,
     staleTime: 1000 * 60 * 2,
   })
 
+  const sv = data?.serie_ventas ?? d.serie_ventas
+  const r = data?.rentabilidad ?? d.rentabilidad
+
+  return (
+    <>
+      <RentabilidadRow r={r} rango={range} fetching={isFetching} />
+      <SalesChartCard sv={sv} range={range} setRange={setRange} isFetching={isFetching} />
+      <div className="row-2">
+        <RentabilidadPorItem r={r} />
+        <RotacionCategorias r={r} />
+      </div>
+    </>
+  )
+}
+
+function SalesChartCard({ sv, range, setRange, isFetching }: {
+  sv: DashboardData['serie_ventas']
+  range: RangoSerie
+  setRange: (r: RangoSerie) => void
+  isFetching?: boolean
+}) {
   const { serie, ingreso_total, transacciones, ticket_promedio } = sv
   const sumPrev = serie.reduce((s, p) => s + p.previous, 0)
   const delta = sumPrev > 0 ? ((ingreso_total - sumPrev) / sumPrev) * 100 : 0
@@ -655,12 +691,7 @@ export default function DashboardPage() {
     <>
       <HeroBanner />
       <HeroKpiGrid d={d} />
-      <RentabilidadRow r={d.rentabilidad} />
-      <SalesChartCard initial={d.serie_ventas} />
-      <div className="row-2">
-        <RentabilidadPorItem r={d.rentabilidad} />
-        <RotacionCategorias r={d.rentabilidad} />
-      </div>
+      <BloqueRango d={d} />
       <ResumenNegocio d={d} />
       <TiendaEnLineaKpis d={d} />
       <div className="row-2">
