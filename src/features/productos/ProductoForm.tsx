@@ -169,6 +169,42 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
     setSkuManual(false)
   }
 
+  // ── Nombre con la variante (estilo SKU: se sugiere, el usuario decide) ────────
+  // El color NO entra aquí: la tienda ya lo concatena al mostrar y el buscador ya
+  // lo consulta como campo propio, así que duplicarlo saldría "… - Azul - Azul".
+  const sufijoDe = (attrs: { nombre: string; valor: string }[]) =>
+    attrs
+      .filter((a) => a.nombre.trim() && a.valor.trim())
+      .map((a) => `${a.nombre.trim()} ${a.valor.trim()}`)
+      .join(' ')
+
+  const sufijoActual  = useMemo(() => sufijoDe(atributos), [atributos])
+  // Sufijo con el que se guardó: permite reemplazarlo en vez de acumularlo cuando
+  // se edita el atributo (S → M da "Camisa Talla M", no "Camisa Talla S Talla M").
+  const sufijoGuardado = useMemo(() => sufijoDe(producto?.atributos ?? []), [producto])
+
+  const nombreBase = useMemo(() => {
+    const n = form.nombre.trim()
+    for (const suf of [sufijoActual, sufijoGuardado]) {
+      if (suf && n.toLowerCase().endsWith(suf.toLowerCase())) {
+        return n.slice(0, n.length - suf.length).trim()
+      }
+    }
+    return n
+  }, [form.nombre, sufijoActual, sufijoGuardado])
+
+  const nombreSugerido = sufijoActual && nombreBase ? `${nombreBase} ${sufijoActual}` : ''
+  const sugerirNombre  = tieneVariantes && !!nombreSugerido && nombreSugerido !== form.nombre.trim()
+
+  const aplicarNombreSugerido = () => {
+    setForm((f) => ({
+      ...f,
+      nombre: nombreSugerido,
+      ...(skuManual ? {} : { sku: generarSkuDesdeNombre(nombreSugerido) }),
+    }))
+    setErrores((e) => ({ ...e, nombre: '' }))
+  }
+
   const guardar = useMutation({
     mutationFn: async () => {
       // Grupo final: el copiado/existente; si no, el de algún producto en cola que ya
@@ -289,6 +325,14 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
 
         <Campo label="Nombre" req error={errores.nombre} col2>
           <input className="form-input" value={form.nombre} onChange={(e) => onNombre(e.target.value)} aria-invalid={!!errores.nombre} placeholder="Nombre del producto" />
+          {sugerirNombre && (
+            <button type="button" className="nombre-sug" onClick={aplicarNombreSugerido}
+              title="Usar este nombre para distinguir la variante">
+              <Wand2 size={13} />
+              <span className="nombre-sug-txt">Sugerencia: <b>{nombreSugerido}</b></span>
+              <span className="nombre-sug-cta">Aplicar</span>
+            </button>
+          )}
         </Campo>
 
         <Campo label="Descripción" error={errores.descripcion} col2>

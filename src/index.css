@@ -2682,6 +2682,24 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
 }
 .input-prefix input { flex: 1; border: 0; background: transparent; outline: none; padding: 0 12px; height: 38px; color: var(--text); font-size: 14px; font-family: inherit; }
 
+/* Sugerencia de nombre con la variante (formulario de producto) */
+.nombre-sug {
+  display: flex; align-items: center; gap: 7px; width: 100%;
+  margin-top: 6px; padding: 6px 9px;
+  border: 1px dashed color-mix(in oklch, var(--accent) 45%, transparent);
+  border-radius: 8px; background: var(--accent-soft);
+  color: var(--text-muted); font-size: 11.5px; text-align: left;
+  cursor: pointer;
+}
+.nombre-sug:hover { border-style: solid; }
+.nombre-sug svg { flex-shrink: 0; color: var(--accent-text); }
+.nombre-sug-txt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nombre-sug-txt b { color: var(--text); font-weight: 600; }
+.nombre-sug-cta {
+  flex-shrink: 0; font-weight: 600; color: var(--accent-text);
+  padding: 1px 7px; border-radius: 999px; background: var(--bg-elev-1);
+}
+
 /* Margen estimado en el formulario de producto */
 .margen-box {
   display: flex; align-items: center; gap: 10px;
