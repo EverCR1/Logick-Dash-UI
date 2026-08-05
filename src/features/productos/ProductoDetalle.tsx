@@ -90,8 +90,8 @@ export default function ProductoDetalle() {
         </div>
         <div className="prod-hero-info">
           <div className="prod-hero-sku">{p.sku}</div>
-          <div className="prod-hero-name">{p.nombre}</div>
-          {(p.marca || p.color) && <div className="muted" style={{ fontSize: 13, marginTop: 2 }}>{[p.marca, p.color].filter(Boolean).join(' · ')}</div>}
+          <div className="prod-hero-name">{p.nombre_completo}</div>
+          {p.marca && <div className="muted" style={{ fontSize: 13, marginTop: 2 }}>{p.marca}</div>}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '10px 0' }}>
             <span className="badge" data-tone={activo ? 'pos' : undefined}><span className="b-dot" />{activo ? 'Activo' : 'Inactivo'}</span>
             {p.categorias?.map((c) => <span key={c.id} className="badge">{c.nombre}</span>)}
@@ -144,6 +144,7 @@ export default function ProductoDetalle() {
             </div>
           </div>
 
+
           {stockBajo && (
             <div className="card" style={{ borderColor: 'color-mix(in oklch, var(--neg) 35%, transparent)' }}>
               <div className="action-list">
@@ -191,13 +192,23 @@ function fmtMon(n: number): string {
 }
 
 function DetailTabs({ p, onImg }: { p: Producto; onImg: (url: string) => void }) {
+  const navigate = useNavigate()
   const tieneEspec = !!p.especificaciones?.trim()
   const tieneImgs = (p.imagenes?.length ?? 0) > 0
-  const [tab, setTab] = useState<'detalles' | 'especificaciones' | 'galeria'>('detalles')
+  const tieneVariantes = !!p.grupo_variante
+  const [tab, setTab] = useState<'detalles' | 'especificaciones' | 'galeria' | 'variantes'>('detalles')
+
+  const { data: variantes = [] } = useQuery({
+    queryKey: ['productos-grupo', p.grupo_variante],
+    queryFn: () => productosApi.listar({ grupo_variante: p.grupo_variante || undefined, per_page: 100 }).then(r => r.productos.data),
+    enabled: tieneVariantes,
+  })
+
   const TABS = [
     { id: 'detalles' as const, label: 'Detalles' },
     ...(tieneEspec ? [{ id: 'especificaciones' as const, label: 'Especificaciones' }] : []),
     ...(tieneImgs ? [{ id: 'galeria' as const, label: `Galería · ${p.imagenes.length}` }] : []),
+    ...(tieneVariantes ? [{ id: 'variantes' as const, label: `Variantes · ${variantes.length}` }] : []),
   ]
   return (
     <div className="card detail-tabs-card">
@@ -240,6 +251,58 @@ function DetailTabs({ p, onImg }: { p: Producto; onImg: (url: string) => void })
                       <Star size={10} /> Principal
                     </span>
                   )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {tab === 'variantes' && (
+        <div style={{ padding: 'var(--pad-card)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14 }}>
+            {variantes.map((v) => {
+              const img = v.imagenes?.find(i => i.es_principal) ?? v.imagenes?.[0]
+              const imgThumb = img?.url_thumb ?? img?.url
+              return (
+                <div key={v.id} onClick={() => navigate(`/productos/${v.id}`)}
+                  style={{
+                    cursor: 'pointer',
+                    padding: 12,
+                    border: '1px solid var(--border)',
+                    borderRadius: 10,
+                    backgroundColor: 'var(--bg-elev-2)',
+                    transition: 'all 200ms',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)'
+                    ;(e.currentTarget as HTMLElement).style.backgroundColor = 'var(--accent-soft)'
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'
+                    ;(e.currentTarget as HTMLElement).style.backgroundColor = 'var(--bg-elev-2)'
+                  }}
+                >
+                  <div style={{ aspectRatio: '1', borderRadius: 8, overflow: 'hidden', backgroundColor: 'var(--bg-elev-1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {imgThumb ? <img src={imgThumb} alt={v.nombre_completo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Package size={28} style={{ color: 'var(--text-faint)' }} />}
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.nombre_completo}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>{v.sku}</div>
+                    <div style={{ marginTop: 8 }}>
+                      {v.precio_oferta ? (
+                        <>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--pos)' }}>Q{fmtMon(v.precio_oferta)}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', textDecoration: 'line-through', marginTop: 2 }}>Q{fmtMon(v.precio_venta)}</div>
+                        </>
+                      ) : (
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>Q{fmtMon(v.precio_venta)}</div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )
             })}

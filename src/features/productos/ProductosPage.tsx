@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Loader2, Eye, Pencil, Trash2, LayoutGrid, List, Ban, CheckCircle2, X, Package, PackagePlus, CheckCircle, AlertTriangle, XCircle, Tag } from 'lucide-react'
@@ -20,6 +20,7 @@ type Vista = 'tabla' | 'cards'
 export default function ProductosPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
   const [search, setSearch] = useState('')
   const [searchDebounced, setSearchDebounced] = useState('')
@@ -34,6 +35,9 @@ export default function ProductosPage() {
   const [vista, setVista] = useState<Vista>(() => (localStorage.getItem('productos_vista') as Vista) || 'tabla')
   const [zoom, setZoom] = useState<string | null>(null)
   const [aReestockear, setAReestockear] = useState<Producto | null>(null)
+
+  // Capturar grupo_variante del URL si viene desde ProductoDetalle
+  const grupoVariante = searchParams.get('grupo_variante')
 
   // Vista tabla usa PER_PAGE fijo (las filas ocupan todo el ancho, sin huecos).
   // Vista cards calcula cuántas caben según el ancho real, para llenar la página.
@@ -59,6 +63,7 @@ export default function ProductosPage() {
     estado: estado !== 'todos' ? estado : undefined,
     stock: stock !== 'todos' ? stock : undefined,
     categoria_id: categoria !== 'todos' ? Number(categoria) : undefined,
+    grupo_variante: grupoVariante || undefined,
     sort: sort !== 'nombre_asc' ? sort : undefined,
     page,
     per_page: perPage,
@@ -142,6 +147,12 @@ export default function ProductosPage() {
       )}
 
       <div className="toolbar">
+        {grupoVariante && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px', borderLeft: '1px solid var(--border)', fontSize: 13 }}>
+            <span style={{ color: 'var(--text-secondary)' }}>Grupo: <span style={{ fontWeight: 600, color: 'var(--accent)' }}>{grupoVariante}</span></span>
+            <button className="icon-btn" onClick={() => navigate('/productos')} title="Cerrar filtro de grupo"><X size={14} /></button>
+          </div>
+        )}
         <div className="toolbar-search">
           <I.Search />
           <input placeholder="Buscar por nombre, SKU, marca, ubicación…" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -161,8 +172,8 @@ export default function ProductosPage() {
             { value: 'stock_desc', label: 'Mayor stock' },
             { value: 'stock_asc', label: 'Menor stock' },
           ]} />
-        {(search || estado !== 'todos' || stock !== 'todos' || categoria !== 'todos' || sort !== 'nombre_asc') && (
-          <button className="btn" onClick={() => { setSearch(''); setEstado('todos'); setStock('todos'); setCategoria('todos'); setSort('nombre_asc'); setPage(1) }} title="Limpiar filtros"><X size={15} /> Limpiar</button>
+        {(search || estado !== 'todos' || stock !== 'todos' || categoria !== 'todos' || sort !== 'nombre_asc' || grupoVariante) && (
+          <button className="btn" onClick={() => { setSearch(''); setEstado('todos'); setStock('todos'); setCategoria('todos'); setSort('nombre_asc'); setPage(1); navigate('/productos') }} title="Limpiar filtros"><X size={15} /> Limpiar</button>
         )}
         <div className="view-toggle">
           <button data-on={vista === 'tabla'} onClick={() => setVista('tabla')} title="Vista de tabla"><List /></button>
@@ -284,7 +295,7 @@ function ProductoFila({ n, producto, onZoom, onVer, onEditar, onReestock, onTogg
         <div className="cell-prod">
           <span className={'cell-thumb' + (grande ? ' img-zoom' : '')} onClick={grande ? (e) => { e.stopPropagation(); onZoom(grande) } : undefined}>{thumb ? <img src={thumb} alt="" /> : <I.Package size={16} />}</span>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 500 }}>{producto.nombre}</div>
+            <div style={{ fontWeight: 500 }}>{producto.nombre_completo}</div>
             <div className="muted" style={{ fontSize: 11.5, marginTop: 1 }}>{producto.sku}</div>
           </div>
         </div>
@@ -328,8 +339,8 @@ function ProductoCard({ producto, onZoom, onVer, onEditar, onReestock, onToggleE
       </div>
       <div className="pcard-body">
         <div className="pcard-sku">{producto.sku}</div>
-        <div className="pcard-name">{producto.nombre}</div>
-        <div className="pcard-meta">{producto.marca ?? 'Sin marca'}{producto.color ? ` · ${producto.color}` : ''}</div>
+        <div className="pcard-name">{producto.nombre_completo}</div>
+        <div className="pcard-meta">{producto.marca ?? 'Sin marca'}</div>
         {producto.categorias?.length > 0 && (
           <div className="pcard-cats">
             {producto.categorias.slice(0, 2).map((c) => <span key={c.id} className="badge">{c.nombre}</span>)}

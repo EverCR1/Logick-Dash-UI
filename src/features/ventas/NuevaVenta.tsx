@@ -146,7 +146,7 @@ export default function NuevaVenta() {
         return prev.map((c) => c === existente ? { ...c, cantidad: c.cantidad + 1 } : c)
       }
       return [...prev, {
-        key: nuevaKey(), tipo: r.tipo, descripcion: r.nombre, precio_unitario: Number(r.precio) || 0,
+        key: nuevaKey(), tipo: r.tipo, descripcion: r.tipo === 'producto' ? (r.nombre_completo || r.nombre) : r.nombre, precio_unitario: Number(r.precio) || 0,
         cantidad: 1, descuento: 0,
         ...(r.tipo === 'producto' ? { producto_id: r.id, stock: r.stock } : { servicio_id: r.id }),
       }]
@@ -324,13 +324,13 @@ export default function NuevaVenta() {
                     const cant = cantEnCarrito(r)
                     const dscto = r.en_oferta && r.precio_regular ? Math.round((1 - r.precio / r.precio_regular) * 100) : 0
                     return (
-                      <button key={`${r.tipo}-${r.id}`} type="button" className="pos-card" data-tipo={r.tipo} data-on={cant > 0} onClick={() => agregar(r)} title={r.nombre}>
+                      <button key={`${r.tipo}-${r.id}`} type="button" className="pos-card" data-tipo={r.tipo} data-on={cant > 0} onClick={() => agregar(r)} title={r.tipo === 'producto' ? (r.nombre_completo || r.nombre) : r.nombre}>
                         {cant > 0 && <span className="pos-card-badge">{cant}</span>}
                         {dscto > 0 && <span className="pos-card-oferta">-{dscto}%</span>}
                         <span className="pos-card-icon">
                           {r.imagen ? <img src={r.imagen} alt="" /> : (r.tipo === 'producto' ? <Package size={18} /> : <Boxes size={18} />)}
                         </span>
-                        <div className="pos-card-name">{r.nombre}</div>
+                        <div className="pos-card-name">{r.tipo === 'producto' ? (r.nombre_completo || r.nombre) : r.nombre}</div>
                         <div className="pos-card-tags">
                           <span className="pos-tag" data-tipo={r.tipo}>{r.tipo === 'producto' ? 'Producto' : 'Servicio'}</span>
                           {r.tipo === 'producto' && r.stock != null && <span className="pos-tag pos-tag-stock">stock {r.stock}</span>}
@@ -598,7 +598,7 @@ export default function NuevaVenta() {
                             {r.imagen ? <img src={r.imagen} alt="" /> : (r.tipo === 'producto' ? <Package size={16} /> : <Boxes size={16} />)}
                           </span>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div className="vr-nombre">{r.nombre}</div>
+                            <div className="vr-nombre">{r.tipo === 'producto' ? (r.nombre_completo || r.nombre) : r.nombre}</div>
                             <div className="muted" style={{ fontSize: 11 }}>{r.sku ?? r.codigo}{r.tipo === 'producto' && r.stock != null ? ` · stock ${r.stock}` : ''}</div>
                           </div>
                           <span style={{ fontWeight: 600, fontSize: 12.5 }}>{q(r.precio)}</span>

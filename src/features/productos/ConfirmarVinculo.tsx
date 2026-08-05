@@ -19,7 +19,7 @@ export function ConfirmarVinculo({ candidato, hermanos, loading, onElegir, onCan
 }) {
   if (!candidato) return null
 
-  const nombres = hermanos.map((h) => h.color || h.nombre).join(', ')
+  const nombres = hermanos.map((h) => h.nombre_completo).join(', ')
   const total = hermanos.length + 1
 
   return (
@@ -29,7 +29,7 @@ export function ConfirmarVinculo({ candidato, hermanos, loading, onElegir, onCan
         <Dialog.Content className="ui-confirm" style={{ maxWidth: 470 }}>
           <Dialog.Title className="ui-confirm-title">¿Cómo quieres vincularlo?</Dialog.Title>
           <Dialog.Description className="ui-confirm-desc">
-            <b>{candidato.nombre}{candidato.color ? ` · ${candidato.color}` : ''}</b> ya pertenece al grupo{' '}
+            <b>{candidato.nombre_completo}</b> ya pertenece al grupo{' '}
             <code>{candidato.grupo_variante}</code>, junto con {hermanos.length}{' '}
             {hermanos.length === 1 ? 'producto más' : 'productos más'} ({nombres}).
           </Dialog.Description>
@@ -50,7 +50,7 @@ export function ConfirmarVinculo({ candidato, hermanos, loading, onElegir, onCan
               <span className="vinc-opcion-txt">
                 <span className="vinc-opcion-tit">Fusionar los dos grupos</span>
                 <span className="vinc-opcion-sub">
-                  {candidato.color || candidato.nombre} y {nombres} se unen a este grupo ({total} {total === 1 ? 'variante' : 'variantes'} más en total).
+                  {candidato.nombre_completo} y {nombres} se unen a este grupo ({total} {total === 1 ? 'variante' : 'variantes'} más en total).
                 </span>
               </span>
             </button>

@@ -73,6 +73,7 @@ export interface VentasResponse {
 export interface ResultadoBusqueda {
   id: number
   nombre: string
+  nombre_completo?: string
   precio: number
   tipo: 'producto' | 'servicio'
   sku?: string

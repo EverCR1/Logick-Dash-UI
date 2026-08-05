@@ -22,6 +22,7 @@ export interface Producto {
   id: number
   sku: string
   nombre: string
+  nombre_completo: string
   descripcion: string | null
   especificaciones: string | null
   marca: string | null

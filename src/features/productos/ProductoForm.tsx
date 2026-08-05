@@ -169,41 +169,54 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
     setSkuManual(false)
   }
 
-  // ── Nombre con la variante (estilo SKU: se sugiere, el usuario decide) ────────
-  // El color NO entra aquí: la tienda ya lo concatena al mostrar y el buscador ya
-  // lo consulta como campo propio, así que duplicarlo saldría "… - Azul - Azul".
-  const sufijoDe = (attrs: { nombre: string; valor: string }[]) =>
-    attrs
-      .filter((a) => a.nombre.trim() && a.valor.trim())
-      .map((a) => `${a.nombre.trim()} ${a.valor.trim()}`)
-      .join(' ')
+  // ── Preview de nombre_completo (calculado automáticamente en backend) ────────
+  // Replica ligera de la lógica del backend para mostrar al usuario cómo se verá.
+  const PALABRAS_DE = ['capacidad', 'cantidad', 'material']
+  const PALABRAS_VARIANTES = new Set([
+    'xs', 's', 'm', 'l', 'xl', 'xxl', 'xxxl',
+    'pequeño', 'pequeña', 'mediano', 'mediana', 'grande',
+    'chico', 'chica', 'estándar', 'plus',
+    'talla', 'tamaño', 'size',
+    'negro', 'blanco', 'rojo', 'azul', 'verde', 'amarillo', 'naranja', 'rosa',
+    'morado', 'púrpura', 'gris', 'plateado', 'dorado', 'café', 'marrón',
+    'turquesa', 'cian', 'magenta', 'beige', 'crema', 'nude', 'transparente',
+    'oscuro', 'claro', 'pastel', 'mate', 'brillante', 'metálico',
+    'color', 'shade', 'tonalidad',
+    '64gb', '128gb', '256gb', '512gb', '1tb', '2tb', '4tb',
+    '16gb', '32gb', '8gb', '4gb', '2gb', '1gb',
+    'gb', 'tb', 'mb', 'capacidad', 'storage', 'almacenamiento',
+    'cuero', 'tela', 'lino', 'algodón', 'poliéster', 'nylon', 'seda',
+    'madera', 'aluminio', 'acero', 'hierro', 'cobre', 'plástico', 'vidrio',
+    'goma', 'caucho', 'titanio', 'carbono', 'material', 'tipo',
+  ])
 
-  const sufijoActual  = useMemo(() => sufijoDe(atributos), [atributos])
-  // Sufijo con el que se guardó: permite reemplazarlo en vez de acumularlo cuando
-  // se edita el atributo (S → M da "Camisa Talla M", no "Camisa Talla S Talla M").
-  const sufijoGuardado = useMemo(() => sufijoDe(producto?.atributos ?? []), [producto])
+  const generarNombreCompletoPreview = () => {
+    const partes = [form.nombre.trim()]
 
-  const nombreBase = useMemo(() => {
-    const n = form.nombre.trim()
-    for (const suf of [sufijoActual, sufijoGuardado]) {
-      if (suf && n.toLowerCase().endsWith(suf.toLowerCase())) {
-        return n.slice(0, n.length - suf.length).trim()
+    atributos.forEach((attr) => {
+      const nombre = attr.nombre.trim()
+      const valor = attr.valor.trim()
+      if (nombre && valor) {
+        if (PALABRAS_DE.includes(nombre.toLowerCase())) {
+          partes.push(`de ${valor}`)
+        } else {
+          partes.push(`${nombre} ${valor}`)
+        }
       }
-    }
-    return n
-  }, [form.nombre, sufijoActual, sufijoGuardado])
+    })
 
-  const nombreSugerido = sufijoActual && nombreBase ? `${nombreBase} ${sufijoActual}` : ''
-  const sugerirNombre  = tieneVariantes && !!nombreSugerido && nombreSugerido !== form.nombre.trim()
-
-  const aplicarNombreSugerido = () => {
-    setForm((f) => ({
-      ...f,
-      nombre: nombreSugerido,
-      ...(skuManual ? {} : { sku: generarSkuDesdeNombre(nombreSugerido) }),
-    }))
-    setErrores((e) => ({ ...e, nombre: '' }))
+    const resultado = partes.join(' ')
+    return form.color ? `${resultado} - ${form.color}` : resultado
   }
+
+  const previewNombreCompleto = generarNombreCompletoPreview()
+
+  const detectarPalabrasVariantes = () => {
+    const nombreLower = form.nombre.toLowerCase()
+    return Array.from(PALABRAS_VARIANTES).some(palabra => nombreLower.includes(palabra))
+  }
+
+  const tieneAdvertencia = tieneVariantes && detectarPalabrasVariantes()
 
   const guardar = useMutation({
     mutationFn: async () => {
@@ -325,13 +338,18 @@ export function ProductoForm({ open, onClose, producto }: ProductoFormProps) {
 
         <Campo label="Nombre" req error={errores.nombre} col2>
           <input className="form-input" value={form.nombre} onChange={(e) => onNombre(e.target.value)} aria-invalid={!!errores.nombre} placeholder="Nombre del producto" />
-          {sugerirNombre && (
-            <button type="button" className="nombre-sug" onClick={aplicarNombreSugerido}
-              title="Usar este nombre para distinguir la variante">
-              <Wand2 size={13} />
-              <span className="nombre-sug-txt">Sugerencia: <b>{nombreSugerido}</b></span>
-              <span className="nombre-sug-cta">Aplicar</span>
-            </button>
+          {tieneAdvertencia && (
+            <div style={{ marginTop: 8, padding: '8px 12px', backgroundColor: 'color-mix(in oklch, var(--warn) 12%, var(--bg-elev-2))', border: '1px solid color-mix(in oklch, var(--warn) 30%, var(--border))', borderRadius: 8, fontSize: '12px', color: 'var(--warn)', display: 'flex', alignItems: 'flex-start', gap: 8, lineHeight: 1.4 }}>
+              <span style={{ flexShrink: 0, marginTop: 2 }}>⚠️</span>
+              <span>El nombre parece incluir información de variantes. Usa solo el nombre base (ej: "Camiseta") y deja que los atributos se agreguen automáticamente.</span>
+            </div>
+          )}
+          {previewNombreCompleto && (
+            <div className="nombre-sug" style={{ marginTop: 8, cursor: 'default' }}>
+              <span className="nombre-sug-txt">
+                Se mostrará como: <b>{previewNombreCompleto}</b>
+              </span>
+            </div>
           )}
         </Campo>
 
