@@ -920,6 +920,60 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
 .rep-acciones { display: flex; justify-content: flex-end; }
 .rep-export { display: inline-flex; gap: 8px; }
 
+/* Reportes: insights, barras horizontales, rankings */
+.insight-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap-grid); }
+@media (max-width: 1000px) { .insight-row { grid-template-columns: 1fr; } }
+.insight {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: var(--pad-card);
+  background: var(--card-bg);
+  border: var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+}
+.insight-icon {
+  width: 34px; height: 34px;
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  background: var(--bg-elev-2);
+  color: var(--text-muted);
+}
+.insight-icon svg { width: 17px; height: 17px; }
+.insight-icon[data-tone="accent"] { background: var(--accent-soft); color: var(--accent-text); }
+.insight-icon[data-tone="pos"]    { background: var(--pos-soft);    color: var(--pos); }
+.insight-icon[data-tone="warn"]   { background: var(--warn-soft);   color: var(--warn); }
+.insight-icon[data-tone="neg"]    { background: var(--neg-soft);    color: var(--neg); }
+.insight-icon[data-tone="info"]   { background: var(--info-soft);   color: var(--info); }
+.insight-icon[data-tone="violet"] { background: var(--violet-soft); color: var(--violet); }
+.insight-main { min-width: 0; }
+.insight-title { font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; }
+.insight-sub { font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4; }
+
+.barrow-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 6px; font-size: 13px; }
+.barrow-label { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barrow-val { font-weight: 600; flex-shrink: 0; }
+.barrow-track { height: 8px; border-radius: 999px; background: var(--bg-elev-2); overflow: hidden; }
+.barrow-track > span { display: block; height: 100%; border-radius: 999px; transition: width .4s ease; }
+.barrow-pct { font-size: 11px; color: var(--text-faint); margin-top: 4px; text-align: right; }
+
+.ranklist { padding: 6px var(--pad-card) var(--pad-card); display: flex; flex-direction: column; }
+.rank-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border-soft); }
+.rank-row:last-child { border-bottom: 0; }
+.rank-main { flex: 1; min-width: 0; }
+.rank-name { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-sub { font-size: 11.5px; color: var(--text-faint); margin-top: 1px; }
+.rank-val { font-size: 13px; font-weight: 600; flex-shrink: 0; }
+
+.progress-block { padding: 0 var(--pad-card) var(--pad-card); }
+.progress-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.progress-head .pl { font-size: 12.5px; color: var(--text-muted); }
+.progress-head .pv { font-size: 12.5px; font-weight: 600; }
+.progress { height: 7px; border-radius: 999px; background: var(--bg-elev-2); overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--pos); border-radius: 999px; transition: width .4s ease; }
+
 /* Ganancias: tarjetas por tipo */
 .gan-tipos { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
 .gan-tipo { padding: 14px 16px; display: grid; gap: 6px; }
@@ -1008,6 +1062,8 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
   color: var(--text-muted);
 }
 .badge .b-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); }
+.badge[data-tone="accent"] { background: var(--accent-soft); color: var(--accent-text); }
+.badge[data-tone="accent"] .b-dot { background: var(--accent); }
 .badge[data-tone="pos"] { background: var(--pos-soft); color: var(--pos); }
 .badge[data-tone="pos"] .b-dot { background: var(--pos); }
 .badge[data-tone="warn"] { background: var(--warn-soft); color: var(--warn); }
@@ -1789,15 +1845,22 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
   font-size: 12.5px;
   color: var(--text-muted);
 }
-.pagination .pages { display: flex; gap: 6px; align-items: center; }
+.pagination .pages { display: flex; gap: 4px; align-items: center; }
 .pagination button {
   height: 30px; min-width: 30px; padding: 0 8px;
   border: 1px solid var(--border); background: var(--bg-elev-1);
-  border-radius: 7px; color: var(--text);
+  border-radius: 7px; color: var(--text-muted);
+  font-size: 12.5px; font-weight: 500;
   display: inline-flex; align-items: center; justify-content: center;
+  transition: background .15s ease, color .15s ease;
 }
-.pagination button:hover:not(:disabled) { background: var(--bg-elev-2); }
+.pagination button:hover:not(:disabled) { background: var(--bg-elev-2); color: var(--text); }
 .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+.pagination button[data-active="true"] {
+  background: var(--accent-soft); color: var(--accent-text);
+  border-color: transparent; font-weight: 600;
+}
+.pagination-gap { color: var(--text-faint); padding: 0 2px; user-select: none; }
 
 /* Toggle de vista (tabla / cards) — reusa el look segmentado del theme-toggle */
 .view-toggle {
