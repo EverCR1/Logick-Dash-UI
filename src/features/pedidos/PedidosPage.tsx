@@ -5,12 +5,14 @@ import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Pagination } from '@/components/ui/Pagination'
+import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
+import { RangoFechas } from '@/components/ui/RangoFechas'
 import { DetallePedido } from './DetallePedido'
 import { ESTADO_PEDIDO } from './pedido-estados'
 import { pedidosTiendaApi } from '@/lib/api'
 import { useDebounce, useAutoPageSize, vistaInicial } from '@/lib/hooks'
 import { q, fmtN, fmtFecha } from '@/lib/format'
-import type { Pedido, PedidoFiltros } from '@/types/pedido'
+import type { Pedido, PedidoFiltros, PedidoSort } from '@/types/pedido'
 
 const PER_PAGE = 15
 
@@ -20,6 +22,9 @@ export default function PedidosPage() {
   const [search, setSearch] = useState('')
   const searchDebounced = useDebounce(search)
   const [estado, setEstado] = useState('todos')
+  const [sort, setSort] = useState<PedidoSort>('fecha_desc')
+  const [desde, setDesde] = useState('')
+  const [hasta, setHasta] = useState('')
   const [vista, setVista] = useState<Vista>(() => vistaInicial('pedidos_vista'))
   const [page, setPage] = useState(1)
   const [verId, setVerId] = useState<number | null>(null)
@@ -33,6 +38,9 @@ export default function PedidosPage() {
   const filtros: PedidoFiltros = {
     search: searchDebounced || undefined,
     estado: estado !== 'todos' ? estado : undefined,
+    sort: sort !== 'fecha_desc' ? sort : undefined,
+    fecha_inicio: desde || undefined,
+    fecha_fin: hasta || undefined,
     page, per_page: perPage,
   }
 
@@ -45,8 +53,16 @@ export default function PedidosPage() {
   const pedidos = data?.pedidos.data ?? []
   const counts = data?.counts
   const meta = data?.pedidos
-  const hayFiltros = !!search || estado !== 'todos'
-  const limpiarFiltros = () => { setSearch(''); setEstado('todos'); setPage(1) }
+  // El boton "Limpiar" solo aparece con 2+ filtros: con uno solo se quita
+  // directamente desde su propio control (la X del buscador o volver a "todos").
+  const filtrosActivos = [!!search, estado !== 'todos', sort !== 'fecha_desc', !!desde || !!hasta].filter(Boolean).length
+  const hayFiltros = filtrosActivos >= 2
+  const limpiarFiltros = () => {
+    setSearch(''); setEstado('todos'); setSort('fecha_desc'); setDesde(''); setHasta(''); setPage(1)
+  }
+  const cambiarRango = (r: { desde: string; hasta: string }) => {
+    setDesde(r.desde); setHasta(r.hasta); setPage(1)
+  }
 
   return (
     <>
@@ -75,11 +91,7 @@ export default function PedidosPage() {
       )}
 
       <div className="toolbar">
-        <div className="toolbar-search">
-          <I.Search />
-          <input placeholder="Buscar por N° pedido, nombre o email…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
-          {isFetching && <Loader2 size={14} className="spin" style={{ color: 'var(--text-faint)' }} />}
-        </div>
+        <BuscadorToolbar placeholder="Buscar por N° pedido, nombre o email…" value={search} onChange={(v) => { setSearch(v); setPage(1) }} cargando={isFetching} />
         <Select value={estado} onValueChange={(v) => { setEstado(v); setPage(1) }} ariaLabel="Estado"
           options={[
             { value: 'todos', label: 'Todos los estados' },
@@ -90,6 +102,15 @@ export default function PedidosPage() {
             { value: 'entregado', label: 'Entregado' },
             { value: 'cancelado', label: 'Cancelado' },
           ]} />
+        <Select value={sort} onValueChange={(v) => { setSort(v as PedidoSort); setPage(1) }} ariaLabel="Ordenar por"
+          options={[
+            { value: 'fecha_desc', label: 'Más recientes' },
+            { value: 'fecha_asc', label: 'Más antiguos' },
+            { value: 'total_desc', label: 'Mayor total' },
+            { value: 'total_asc', label: 'Menor total' },
+          ]} />
+        <RangoFechas desde={desde} hasta={hasta} onChange={cambiarRango}
+          onLimpiar={() => cambiarRango({ desde: '', hasta: '' })} />
         {hayFiltros && <button className="btn" onClick={limpiarFiltros} title="Limpiar filtros"><X size={15} /> Limpiar</button>}
         <div className="view-toggle">
           <button data-on={vista === 'tabla'} onClick={() => setVista('tabla')} title="Vista de tabla"><List /></button>

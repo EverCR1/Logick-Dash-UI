@@ -12,10 +12,16 @@ export interface Cliente {
   notas: string | null
 }
 
+export type ClienteSort =
+  | 'nombre_asc' | 'nombre_desc'
+  | 'recientes' | 'antiguos'
+  | 'compras_desc' | 'monto_desc'
+
 export interface ClienteFiltros {
   search?: string
   estado?: string
   tipo?: string
+  sort?: ClienteSort
   page?: number
   per_page?: number
 }

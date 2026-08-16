@@ -100,7 +100,7 @@ export default function ReportesTiendaPage() {
             { value: 'invalido', label: 'Inválidos' },
           ]} />
         <Select value={categoria} onValueChange={(v) => { setCategoria(v); setPage(1) }} ariaLabel="Categoría" options={opcionesCategoria} />
-        {(estado !== 'todos' || categoria !== 'todos') && (
+        {[estado !== 'todos', categoria !== 'todos'].filter(Boolean).length >= 2 && (
           <button className="btn" onClick={() => { setEstado('todos'); setCategoria('todos'); setPage(1) }} title="Limpiar filtros"><X size={15} /> Limpiar</button>
         )}
         {isFetching && <Loader2 size={14} className="spin" style={{ color: 'var(--text-faint)' }} />}

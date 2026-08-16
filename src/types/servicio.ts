@@ -22,9 +22,22 @@ export interface Servicio {
   updated_at?: string | null
 }
 
+export type ServicioSort =
+  | 'nombre_asc' | 'nombre_desc'
+  | 'precio_asc' | 'precio_desc'
+  | 'inversion_asc' | 'inversion_desc'
+  | 'margen_asc' | 'margen_desc'
+
+/** Tramos de margen que reconoce la API: alto ≥100%, medio 50-99%, bajo 20-49%, mínimo <20% */
+export type ServicioMargen = 'todos' | 'alto' | 'medio' | 'bajo' | 'minimo'
+
 export interface ServicioFiltros {
   search?: string
   estado?: string
+  precio_min?: number
+  precio_max?: number
+  margen?: ServicioMargen
+  sort?: ServicioSort
   page?: number
   per_page?: number
 }

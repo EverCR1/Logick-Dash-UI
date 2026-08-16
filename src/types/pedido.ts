@@ -41,9 +41,14 @@ export interface Pedido {
   detalles: PedidoDetalle[]
 }
 
+export type PedidoSort = 'fecha_desc' | 'fecha_asc' | 'total_desc' | 'total_asc'
+
 export interface PedidoFiltros {
   search?: string
   estado?: string
+  fecha_inicio?: string
+  fecha_fin?: string
+  sort?: PedidoSort
   page?: number
   per_page?: number
 }

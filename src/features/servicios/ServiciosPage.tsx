@@ -8,12 +8,14 @@ import { Select } from '@/components/ui/Select'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Pagination } from '@/components/ui/Pagination'
+import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
 import { Lightbox } from '@/components/ui/Lightbox'
+import { RangoNumerico } from '@/components/ui/RangoNumerico'
 import { ServicioForm } from './ServicioForm'
 import { serviciosApi } from '@/lib/api'
 import { useDebounce, useAutoPageSize } from '@/lib/hooks'
 import { q, fmtN } from '@/lib/format'
-import type { Servicio, ServicioFiltros } from '@/types/servicio'
+import type { Servicio, ServicioFiltros, ServicioMargen, ServicioSort } from '@/types/servicio'
 
 const PER_PAGE = 15
 type Vista = 'tabla' | 'cards'
@@ -41,6 +43,13 @@ export default function ServiciosPage() {
   const [search, setSearch] = useState('')
   const searchDebounced = useDebounce(search)
   const [estado, setEstado] = useState('todos')
+  const [margen, setMargen] = useState<ServicioMargen>('todos')
+  const [sort, setSort] = useState<ServicioSort>('nombre_asc')
+  const [precioMin, setPrecioMin] = useState('')
+  const [precioMax, setPrecioMax] = useState('')
+  // Se debouncean para no lanzar una petición por cada tecla del rango
+  const precioMinDeb = useDebounce(precioMin)
+  const precioMaxDeb = useDebounce(precioMax)
   const [vista, setVista] = useState<Vista>(() => (localStorage.getItem('servicios_vista') as Vista) || 'tabla')
   const [page, setPage] = useState(1)
   const [aEliminar, setAEliminar] = useState<Servicio | null>(null)
@@ -54,7 +63,15 @@ export default function ServiciosPage() {
   useEffect(() => { localStorage.setItem('servicios_vista', vista) }, [vista])
   useEffect(() => { setPage(1) }, [perPage])
 
-  const filtros: ServicioFiltros = { search: searchDebounced || undefined, estado: estado !== 'todos' ? estado : undefined, page, per_page: perPage }
+  const filtros: ServicioFiltros = {
+    search: searchDebounced || undefined,
+    estado: estado !== 'todos' ? estado : undefined,
+    margen: margen !== 'todos' ? margen : undefined,
+    sort: sort !== 'nombre_asc' ? sort : undefined,
+    precio_min: precioMinDeb ? Number(precioMinDeb) : undefined,
+    precio_max: precioMaxDeb ? Number(precioMaxDeb) : undefined,
+    page, per_page: perPage,
+  }
 
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['servicios', filtros],
@@ -76,8 +93,14 @@ export default function ServiciosPage() {
   const servicios = data?.servicios.data ?? []
   const counts = data?.counts
   const meta = data?.servicios
-  const hayFiltros = !!search || estado !== 'todos'
-  const limpiarFiltros = () => { setSearch(''); setEstado('todos'); setPage(1) }
+  // El boton "Limpiar" solo aparece con 2+ filtros: con uno solo se quita
+  // directamente desde su propio control (la X del buscador o volver a "todos").
+  const filtrosActivos = [!!search, estado !== 'todos', margen !== 'todos', sort !== 'nombre_asc', !!precioMin || !!precioMax].filter(Boolean).length
+  const hayFiltros = filtrosActivos >= 2
+  const limpiarFiltros = () => {
+    setSearch(''); setEstado('todos'); setMargen('todos'); setSort('nombre_asc')
+    setPrecioMin(''); setPrecioMax(''); setPage(1)
+  }
 
   return (
     <>
@@ -105,13 +128,31 @@ export default function ServiciosPage() {
       )}
 
       <div className="toolbar">
-        <div className="toolbar-search">
-          <I.Search />
-          <input placeholder="Buscar por código, nombre…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
-          {isFetching && <Loader2 size={14} className="spin" style={{ color: 'var(--text-faint)' }} />}
-        </div>
+        <BuscadorToolbar placeholder="Buscar por código, nombre…" value={search} onChange={(v) => { setSearch(v); setPage(1) }} cargando={isFetching} />
         <Select value={estado} onValueChange={(v) => { setEstado(v); setPage(1) }} ariaLabel="Estado"
           options={[{ value: 'todos', label: 'Todos los estados' }, { value: 'activo', label: 'Activos' }, { value: 'inactivo', label: 'Inactivos' }]} />
+        <Select value={margen} onValueChange={(v) => { setMargen(v as ServicioMargen); setPage(1) }} ariaLabel="Margen"
+          options={[
+            { value: 'todos', label: 'Todos los márgenes' },
+            { value: 'alto', label: 'Margen alto (≥100%)' },
+            { value: 'medio', label: 'Margen medio (50-99%)' },
+            { value: 'bajo', label: 'Margen bajo (20-49%)' },
+            { value: 'minimo', label: 'Margen mínimo (<20%)' },
+          ]} />
+        <RangoNumerico prefijo="Q" etiqueta="Precio" min={precioMin} max={precioMax}
+          onChange={(r) => { setPrecioMin(r.min); setPrecioMax(r.max); setPage(1) }}
+          onLimpiar={() => { setPrecioMin(''); setPrecioMax(''); setPage(1) }} />
+        <Select value={sort} onValueChange={(v) => { setSort(v as ServicioSort); setPage(1) }} ariaLabel="Ordenar por"
+          options={[
+            { value: 'nombre_asc', label: 'Nombre A-Z' },
+            { value: 'nombre_desc', label: 'Nombre Z-A' },
+            { value: 'precio_asc', label: 'Menor precio' },
+            { value: 'precio_desc', label: 'Mayor precio' },
+            { value: 'inversion_asc', label: 'Menor inversión' },
+            { value: 'inversion_desc', label: 'Mayor inversión' },
+            { value: 'margen_desc', label: 'Mayor margen' },
+            { value: 'margen_asc', label: 'Menor margen' },
+          ]} />
         {hayFiltros && <button className="btn" onClick={limpiarFiltros} title="Limpiar filtros"><X size={15} /> Limpiar</button>}
         <div className="view-toggle">
           <button data-on={vista === 'tabla'} onClick={() => setVista('tabla')} title="Vista de tabla"><List /></button>

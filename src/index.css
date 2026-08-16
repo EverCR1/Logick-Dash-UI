@@ -906,16 +906,58 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
 .donut-row { display: flex; gap: 24px; align-items: center; padding: 4px var(--pad-card) var(--pad-card); flex-wrap: wrap; }
 .donut-wrap { position: relative; flex-shrink: 0; }
 
+/* ── Filtros de rango (fechas y numérico) — compartidos por varios módulos ── */
+.rango-fechas,
+.rango-numerico { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rango-etiqueta { font-size: 12px; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+
+/* Los inputs de rango se alinean con la altura del resto de la toolbar (34px).
+   Van con selector de elemento + clase a propósito: .form-input se declara más
+   abajo con width:100% y, a igual especificidad, ganaría por orden y estiraría
+   los campos hasta ocupar la fila entera.
+   El ancho de fecha alcanza para dd/mm/aaaa más el icono del picker. */
+input.rango-date,
+.rango-campo input {
+  height: 34px;
+  padding: 0 8px;
+  font-size: 12.5px;
+  flex: none;
+}
+input.rango-date { width: 138px; }
+
+.rango-atajos { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.rango-atajos button { padding: 0 12px; height: 34px; font-size: 12.5px; font-weight: 500; color: var(--text-muted); background: var(--bg-elev-1); border: 0; border-right: 1px solid var(--border); }
+.rango-atajos button:last-child { border-right: 0; }
+.rango-atajos button:hover { background: var(--bg-elev-2); }
+.rango-atajos button[data-on="true"] { background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+
+/* El prefijo se superpone al input, que reserva espacio con el padding */
+.rango-campo { position: relative; display: inline-flex; align-items: center; }
+.rango-campo input { width: 86px; }
+.rango-campo:has(.rango-prefijo) input { padding-left: 21px; }
+.rango-prefijo { position: absolute; left: 8px; font-size: 12px; color: var(--text-faint); pointer-events: none; }
+.rango-numerico[data-invalido] .rango-campo input { border-color: var(--neg); }
+
+/* Panel de filtros secundarios (botón "Más filtros") */
+.filtros-panel {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  margin-top: 10px; padding: 12px;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg-elev-2);
+}
+.btn-conteo {
+  min-width: 17px; height: 17px; padding: 0 5px;
+  border-radius: 999px; background: var(--accent); color: var(--text-on-accent);
+  font-size: 10.5px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+/* Botón que actúa como interruptor de un panel (p. ej. "Más filtros") */
+.btn[data-on] { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
+
 /* ── Módulo de reportes ─────────────────────────────────────── */
 .rep-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 18px; }
 .rep-tabs { flex-wrap: wrap; }
-.rep-fechas { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; }
-.rep-date { width: auto; }
-.rep-periodos { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.rep-periodos button { padding: 0 12px; height: 34px; font-size: 12.5px; font-weight: 500; color: var(--text-muted); background: var(--bg-elev-1); border: 0; border-right: 1px solid var(--border); }
-.rep-periodos button:last-child { border-right: 0; }
-.rep-periodos button:hover { background: var(--bg-elev-2); }
-.rep-periodos button[data-on="true"] { background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+.rep-fechas { margin-left: auto; }
 .rep-seccion { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); }
 .rep-acciones { display: flex; justify-content: flex-end; }
 .rep-export { display: inline-flex; gap: 8px; }
@@ -2661,8 +2703,22 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
 .vr-nombre { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Botón limpiar dentro del buscador */
-.ts-clear { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 5px; color: var(--text-faint); flex-shrink: 0; }
-.ts-clear:hover { background: var(--hover); color: var(--text); }
+/* Botón X para vaciar un campo. Resetea background/border explícitamente: sin
+   eso el navegador le pinta su estilo nativo de botón y se ve como un recuadro
+   suelto dentro del input, distinto en cada tema. */
+.ts-clear {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; padding: 0;
+  border: 0; background: transparent;
+  border-radius: 999px;
+  color: var(--text-faint);
+  flex-shrink: 0;
+  transition: background .12s, color .12s;
+}
+.ts-clear:hover { background: var(--hover-strong); }
+/* El icono se colorea aparte porque .toolbar-search svg lo fija directamente */
+.ts-clear:hover svg { color: var(--text); }
+.ts-clear:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* Tabla de items */
 .venta-items .form-input { height: 32px; padding: 0 8px; width: 100%; }

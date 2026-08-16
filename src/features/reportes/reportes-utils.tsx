@@ -3,26 +3,8 @@ import { I } from '@/components/icons'
 import type { AreaPoint } from '@/components/charts'
 import { fmtN, fechaLocal as iso } from '@/lib/format'
 
-// Rango por defecto: inicio de mes → hoy
-export function rangoPorDefecto(): { desde: string; hasta: string } {
-  const now = new Date()
-  return { desde: iso(new Date(now.getFullYear(), now.getMonth(), 1)), hasta: iso(now) }
-}
-
-export type Periodo = 'hoy' | 'semana' | 'mes' | 'personalizado'
-
-// Calcula el rango para un periodo rápido
-export function rangoDePeriodo(p: Exclude<Periodo, 'personalizado'>): { desde: string; hasta: string } {
-  const now = new Date()
-  const hasta = iso(now)
-  if (p === 'hoy') return { desde: hasta, hasta }
-  if (p === 'semana') {
-    const dia = (now.getDay() + 6) % 7 // lunes = 0
-    const inicio = new Date(now); inicio.setDate(now.getDate() - dia)
-    return { desde: iso(inicio), hasta }
-  }
-  return { desde: iso(new Date(now.getFullYear(), now.getMonth(), 1)), hasta } // mes
-}
+// Los helpers de rango de fechas viven junto al componente que los usa:
+// @/components/ui/RangoFechas (rangoPorDefecto, rangoDePeriodo, Periodo).
 
 // ── Comparación contra el periodo anterior ──────────────────────────────────
 

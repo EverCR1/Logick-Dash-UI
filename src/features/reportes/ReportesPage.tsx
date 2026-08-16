@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { rangoPorDefecto, rangoDePeriodo, type Periodo } from './reportes-utils'
+import { RangoFechas, rangoPorDefecto } from '@/components/ui/RangoFechas'
 import {
   TabResumen, TabVentas, TabProductos, TabServicios, TabInventario,
   TabClientes, TabVendedores, TabSucursales, TabGanancias, TabTienda,
@@ -21,25 +21,13 @@ const TABS: { key: TabKey; label: string; conFechas: boolean }[] = [
   { key: 'tienda', label: 'Tienda', conFechas: true },
 ]
 
-const PERIODOS: { key: Exclude<Periodo, 'personalizado'>; label: string }[] = [
-  { key: 'hoy', label: 'Hoy' },
-  { key: 'semana', label: 'Semana' },
-  { key: 'mes', label: 'Mes' },
-]
-
 export default function ReportesPage() {
   const [tab, setTab] = useState<TabKey>('resumen')
   const rango = rangoPorDefecto()
-  const [periodo, setPeriodo] = useState<Periodo>('mes')
   const [desde, setDesde] = useState(rango.desde)
   const [hasta, setHasta] = useState(rango.hasta)
 
   const activa = TABS.find((t) => t.key === tab)!
-
-  const elegirPeriodo = (p: Exclude<Periodo, 'personalizado'>) => {
-    const r = rangoDePeriodo(p)
-    setPeriodo(p); setDesde(r.desde); setHasta(r.hasta)
-  }
 
   return (
     <>
@@ -54,14 +42,8 @@ export default function ReportesPage() {
 
         {activa.conFechas && (
           <div className="rep-fechas">
-            <div className="rep-periodos">
-              {PERIODOS.map((p) => (
-                <button key={p.key} data-on={periodo === p.key} onClick={() => elegirPeriodo(p.key)}>{p.label}</button>
-              ))}
-            </div>
-            <input type="date" className="form-input rep-date" value={desde} max={hasta} onChange={(e) => { setDesde(e.target.value); setPeriodo('personalizado') }} aria-label="Desde" />
-            <span className="muted" style={{ fontSize: 12 }}>—</span>
-            <input type="date" className="form-input rep-date" value={hasta} min={desde} onChange={(e) => { setHasta(e.target.value); setPeriodo('personalizado') }} aria-label="Hasta" />
+            <RangoFechas desde={desde} hasta={hasta}
+              onChange={(r) => { setDesde(r.desde); setHasta(r.hasta) }} />
           </div>
         )}
       </div>

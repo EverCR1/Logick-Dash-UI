@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
-import { Loader2, Eye } from 'lucide-react'
+import { Loader2, Eye, X } from 'lucide-react'
 import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Pagination } from '@/components/ui/Pagination'
+import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
+import { RangoFechas } from '@/components/ui/RangoFechas'
 import { DetalleAuditoria } from './DetalleAuditoria'
 import { auditoriaApi } from '@/lib/api'
 import { useDebounce } from '@/lib/hooks'
@@ -25,6 +27,9 @@ export default function AuditoriaPage() {
   const busquedaDebounced = useDebounce(busqueda)
   const [modulo, setModulo] = useState('todos')
   const [accion, setAccion] = useState('todos')
+  const [usuario, setUsuario] = useState('todos')
+  const [desde, setDesde] = useState('')
+  const [hasta, setHasta] = useState('')
   const [page, setPage] = useState(1)
   const [detalle, setDetalle] = useState<Auditoria | null>(null)
 
@@ -34,6 +39,9 @@ export default function AuditoriaPage() {
     busqueda: busquedaDebounced || undefined,
     modulo: modulo !== 'todos' ? modulo : undefined,
     accion: accion !== 'todos' ? accion : undefined,
+    usuario_id: usuario !== 'todos' ? usuario : undefined,
+    fecha_inicio: desde || undefined,
+    fecha_fin: hasta || undefined,
     page, per_page: PER_PAGE,
   }
 
@@ -45,17 +53,26 @@ export default function AuditoriaPage() {
 
   const logs = data?.auditoria.data ?? []
   const meta = data?.auditoria
+  const usuarios = data?.catalogos?.usuarios ?? []
+
+  // El boton "Limpiar" solo aparece con 2+ filtros: con uno solo se quita
+  // directamente desde su propio control (la X del buscador o volver a "todos").
+  const filtrosActivos = [!!busqueda, modulo !== 'todos', accion !== 'todos', usuario !== 'todos', !!desde || !!hasta].filter(Boolean).length
+  const hayFiltros = filtrosActivos >= 2
+  const limpiar = () => {
+    setBusqueda(''); setModulo('todos'); setAccion('todos')
+    setUsuario('todos'); setDesde(''); setHasta(''); setPage(1)
+  }
+  const cambiarRango = (r: { desde: string; hasta: string }) => {
+    setDesde(r.desde); setHasta(r.hasta); setPage(1)
+  }
 
   return (
     <>
       <PageHeader title="Auditoría" subtitle="Registro de acciones realizadas en el sistema" />
 
       <div className="toolbar">
-        <div className="toolbar-search">
-          <I.Search />
-          <input placeholder="Buscar por usuario, descripción…" value={busqueda} onChange={(e) => { setBusqueda(e.target.value); setPage(1) }} />
-          {isFetching && <Loader2 size={14} className="spin" style={{ color: 'var(--text-faint)' }} />}
-        </div>
+        <BuscadorToolbar placeholder="Buscar por usuario, descripción…" value={busqueda} onChange={(v) => { setBusqueda(v); setPage(1) }} cargando={isFetching} />
         <Select value={modulo} onValueChange={(v) => { setModulo(v); setPage(1) }} ariaLabel="Módulo"
           options={[{ value: 'todos', label: 'Todos los módulos' }, ...modulos.map((m) => ({ value: m, label: m }))]} />
         <Select value={accion} onValueChange={(v) => { setAccion(v); setPage(1) }} ariaLabel="Acción"
@@ -66,6 +83,13 @@ export default function AuditoriaPage() {
             { value: 'ELIMINAR', label: 'Eliminación' },
             { value: 'CAMBIO_ESTADO', label: 'Cambio de estado' },
           ]} />
+        <Select value={usuario} onValueChange={(v) => { setUsuario(v); setPage(1) }} ariaLabel="Usuario"
+          options={[{ value: 'todos', label: 'Todos los usuarios' }, ...usuarios.map((u) => ({ value: String(u.id), label: u.nombre }))]} />
+        <RangoFechas desde={desde} hasta={hasta} onChange={cambiarRango}
+          onLimpiar={() => cambiarRango({ desde: '', hasta: '' })} />
+        {hayFiltros && (
+          <button className="btn" onClick={limpiar} title="Limpiar filtros"><X size={15} /> Limpiar</button>
+        )}
       </div>
 
       <div className="card">

@@ -7,6 +7,7 @@ import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Lightbox } from '@/components/ui/Lightbox'
+import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
 import { ProductoForm } from './ProductoForm'
 import { AjustarStock } from './AjustarStock'
 import { productosApi, catalogosApi } from '@/lib/api'
@@ -27,6 +28,7 @@ export default function ProductosPage() {
   const [estado, setEstado] = useState('todos')
   const [stock, setStock] = useState('todos')
   const [categoria, setCategoria] = useState('todos')
+  const [proveedor, setProveedor] = useState('todos')
   const [sort, setSort] = useState('nombre_asc')
   const [page, setPage] = useState(1)
   const [aEliminar, setAEliminar] = useState<Producto | null>(null)
@@ -63,6 +65,7 @@ export default function ProductosPage() {
     estado: estado !== 'todos' ? estado : undefined,
     stock: stock !== 'todos' ? stock : undefined,
     categoria_id: categoria !== 'todos' ? Number(categoria) : undefined,
+    proveedor_id: proveedor !== 'todos' ? Number(proveedor) : undefined,
     grupo_variante: grupoVariante || undefined,
     sort: sort !== 'nombre_asc' ? sort : undefined,
     page,
@@ -78,6 +81,12 @@ export default function ProductosPage() {
   const { data: categorias = [] } = useQuery({
     queryKey: ['categorias-opciones'],
     queryFn: catalogosApi.categorias,
+    staleTime: 1000 * 60 * 10,
+  })
+
+  const { data: proveedores = [] } = useQuery({
+    queryKey: ['proveedores-opciones'],
+    queryFn: catalogosApi.proveedoresActivos,
     staleTime: 1000 * 60 * 10,
   })
 
@@ -109,6 +118,18 @@ export default function ProductosPage() {
     { value: 'todos', label: 'Todas las categorías' },
     ...categorias.map((c) => ({ value: String(c.id), label: '— '.repeat(c.nivel) + c.nombre })),
   ]
+
+  const opcionesProveedor = [
+    { value: 'todos', label: 'Todos los proveedores' },
+    ...proveedores.map((p) => ({ value: String(p.id), label: p.nombre })),
+  ]
+
+  // El botón "Limpiar" solo aparece con 2+ filtros: con uno solo se quita
+  // directamente desde su propio control (la X del buscador o volver a "todos").
+  const filtrosActivos = [
+    !!search, estado !== 'todos', stock !== 'todos',
+    categoria !== 'todos', proveedor !== 'todos', sort !== 'nombre_asc', !!grupoVariante,
+  ].filter(Boolean).length
 
   const onToggleEstado = (p: Producto) =>
     cambiarEstado.mutate({ id: p.id, estado: p.estado === 'activo' ? 'inactivo' : 'activo' })
@@ -153,16 +174,13 @@ export default function ProductosPage() {
             <button className="icon-btn" onClick={() => navigate('/productos')} title="Cerrar filtro de grupo"><X size={14} /></button>
           </div>
         )}
-        <div className="toolbar-search">
-          <I.Search />
-          <input placeholder="Buscar por nombre, SKU, marca, ubicación…" value={search} onChange={(e) => setSearch(e.target.value)} />
-          {isFetching && <Loader2 size={14} className="spin" style={{ color: 'var(--text-faint)' }} />}
-        </div>
+        <BuscadorToolbar placeholder="Buscar por nombre, SKU, marca, ubicación…" value={search} onChange={setSearch} cargando={isFetching} />
         <Select value={estado} onValueChange={(v) => { setEstado(v); setPage(1) }} ariaLabel="Estado"
           options={[{ value: 'todos', label: 'Todos los estados' }, { value: 'activo', label: 'Activos' }, { value: 'inactivo', label: 'Inactivos' }]} />
         <Select value={stock} onValueChange={(v) => { setStock(v); setPage(1) }} ariaLabel="Stock"
           options={[{ value: 'todos', label: 'Todo el stock' }, { value: 'disponible', label: 'Con stock' }, { value: 'bajo', label: 'Bajo stock' }, { value: 'agotado', label: 'Agotados' }]} />
         <Select value={categoria} onValueChange={(v) => { setCategoria(v); setPage(1) }} ariaLabel="Categoría" options={opcionesCategoria} />
+        <Select value={proveedor} onValueChange={(v) => { setProveedor(v); setPage(1) }} ariaLabel="Proveedor" options={opcionesProveedor} />
         <Select value={sort} onValueChange={(v) => { setSort(v); setPage(1) }} ariaLabel="Ordenar por"
           options={[
             { value: 'nombre_asc', label: 'Nombre A-Z' },
@@ -172,8 +190,8 @@ export default function ProductosPage() {
             { value: 'stock_desc', label: 'Mayor stock' },
             { value: 'stock_asc', label: 'Menor stock' },
           ]} />
-        {(search || estado !== 'todos' || stock !== 'todos' || categoria !== 'todos' || sort !== 'nombre_asc' || grupoVariante) && (
-          <button className="btn" onClick={() => { setSearch(''); setEstado('todos'); setStock('todos'); setCategoria('todos'); setSort('nombre_asc'); setPage(1); navigate('/productos') }} title="Limpiar filtros"><X size={15} /> Limpiar</button>
+        {filtrosActivos >= 2 && (
+          <button className="btn" onClick={() => { setSearch(''); setEstado('todos'); setStock('todos'); setCategoria('todos'); setProveedor('todos'); setSort('nombre_asc'); setPage(1); navigate('/productos') }} title="Limpiar filtros"><X size={15} /> Limpiar</button>
         )}
         <div className="view-toggle">
           <button data-on={vista === 'tabla'} onClick={() => setVista('tabla')} title="Vista de tabla"><List /></button>

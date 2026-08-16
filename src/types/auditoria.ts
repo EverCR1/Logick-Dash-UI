@@ -1,4 +1,4 @@
-import type { Paginado } from './producto'
+import type { OpcionCatalogo, Paginado } from './producto'
 
 export type AuditoriaAccion = 'CREAR' | 'EDITAR' | 'ELIMINAR' | 'CAMBIO_ESTADO' | string
 
@@ -31,7 +31,13 @@ export interface AuditoriaFiltros {
   per_page?: number
 }
 
+/** Usuarios presentes en el log, para el select de filtro. */
+export interface AuditoriaCatalogos {
+  usuarios: OpcionCatalogo[]
+}
+
 export interface AuditoriaResponse {
   success: boolean
   auditoria: Paginado<Auditoria>
+  catalogos: AuditoriaCatalogos
 }

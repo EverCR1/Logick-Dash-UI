@@ -7,6 +7,7 @@ import { Select } from '@/components/ui/Select'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Pagination } from '@/components/ui/Pagination'
+import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
 import { CuponForm } from './CuponForm'
 import { cuponesApi } from '@/lib/api'
 import { useDebounce, useAutoPageSize, vistaInicial } from '@/lib/hooks'
@@ -58,7 +59,10 @@ export default function CuponesPage() {
   const cupones = data?.cupones.data ?? []
   const counts = data?.counts
   const meta = data?.cupones
-  const hayFiltros = !!search || estado !== 'todos'
+  // El boton "Limpiar" solo aparece con 2+ filtros: con uno solo se quita
+  // directamente desde su propio control (la X del buscador o volver a "todos").
+  const filtrosActivos = [!!search, estado !== 'todos'].filter(Boolean).length
+  const hayFiltros = filtrosActivos >= 2
   const limpiarFiltros = () => { setSearch(''); setEstado('todos'); setPage(1) }
 
   const abrirEditar = (c: Cupon) => { setEditar(c); setFormOpen(true) }
@@ -88,11 +92,7 @@ export default function CuponesPage() {
       )}
 
       <div className="toolbar">
-        <div className="toolbar-search">
-          <I.Search />
-          <input placeholder="Buscar por código…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
-          {isFetching && <Loader2 size={14} className="spin" style={{ color: 'var(--text-faint)' }} />}
-        </div>
+        <BuscadorToolbar placeholder="Buscar por código…" value={search} onChange={(v) => { setSearch(v); setPage(1) }} cargando={isFetching} />
         <Select value={estado} onValueChange={(v) => { setEstado(v); setPage(1) }} ariaLabel="Estado"
           options={[{ value: 'todos', label: 'Todos los estados' }, { value: 'activo', label: 'Activos' }, { value: 'inactivo', label: 'Inactivos' }]} />
         {hayFiltros && <button className="btn" onClick={limpiarFiltros} title="Limpiar filtros"><X size={15} /> Limpiar</button>}

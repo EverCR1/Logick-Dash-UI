@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/Select'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Pagination } from '@/components/ui/Pagination'
+import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
 import { UsuarioForm } from './UsuarioForm'
 import { rolMeta, iniciales } from './usuario-meta'
 import { usuariosApi } from '@/lib/api'
@@ -63,7 +64,10 @@ export default function UsuariosPage() {
 
   const usuarios = data?.users.data ?? []
   const meta = data?.users
-  const hayFiltros = !!search || estado !== 'todos' || rol !== 'todos'
+  // El boton "Limpiar" solo aparece con 2+ filtros: con uno solo se quita
+  // directamente desde su propio control (la X del buscador o volver a "todos").
+  const filtrosActivos = [!!search, estado !== 'todos', rol !== 'todos'].filter(Boolean).length
+  const hayFiltros = filtrosActivos >= 2
   const limpiarFiltros = () => { setSearch(''); setEstado('todos'); setRol('todos'); setPage(1) }
 
   const abrirEditar = (u: Usuario) => { setEditar(u); setFormOpen(true) }
@@ -75,11 +79,7 @@ export default function UsuariosPage() {
         action={<button className="btn btn-primary" onClick={() => { setEditar(null); setFormOpen(true) }}><I.Plus /> Nuevo usuario</button>} />
 
       <div className="toolbar">
-        <div className="toolbar-search">
-          <I.Search />
-          <input placeholder="Buscar por nombre, correo, usuario…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
-          {isFetching && <Loader2 size={14} className="spin" style={{ color: 'var(--text-faint)' }} />}
-        </div>
+        <BuscadorToolbar placeholder="Buscar por nombre, correo, usuario…" value={search} onChange={(v) => { setSearch(v); setPage(1) }} cargando={isFetching} />
         <Select value={rol} onValueChange={(v) => { setRol(v); setPage(1) }} ariaLabel="Rol"
           options={[
             { value: 'todos', label: 'Todos los roles' },

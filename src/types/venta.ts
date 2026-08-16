@@ -1,4 +1,4 @@
-import type { Paginado } from './producto'
+import type { OpcionCatalogo, Paginado } from './producto'
 
 export type VentaEstado = 'completada' | 'pendiente' | 'cancelada'
 export type MetodoPago = 'efectivo' | 'tarjeta' | 'transferencia' | 'mixto' | 'credito'
@@ -58,15 +58,26 @@ export interface VentaFiltros {
   metodo_pago?: string
   fecha_inicio?: string
   fecha_fin?: string
+  monto_min?: number
+  monto_max?: number
+  sucursal_id?: number
+  vendedor_id?: number
   sort?: 'fecha_desc' | 'fecha_asc' | 'total_desc' | 'total_asc'
   page?: number
   per_page?: number
+}
+
+/** Opciones para los selects de sucursal y vendedor, que vienen con el listado. */
+export interface VentaCatalogos {
+  sucursales: OpcionCatalogo[]
+  vendedores: OpcionCatalogo[]
 }
 
 export interface VentasResponse {
   success: boolean
   ventas: Paginado<Venta>
   estadisticas: VentaEstadisticas
+  catalogos: VentaCatalogos
 }
 
 // ── POS ──────────────────────────────────────────────────────────────────

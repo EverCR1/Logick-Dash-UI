@@ -74,6 +74,13 @@ export interface ProductoCounts {
   en_oferta: number
 }
 
+// Opción de un select poblado desde el backend (sucursales, vendedores, usuarios…).
+// La API devuelve esta misma forma en ventas, auditoría y reportes.
+export interface OpcionCatalogo {
+  id: number
+  nombre: string
+}
+
 // Estructura del paginador de Laravel
 export interface Paginado<T> {
   data: T[]

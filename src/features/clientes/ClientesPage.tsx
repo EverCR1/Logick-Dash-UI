@@ -8,12 +8,13 @@ import { Select } from '@/components/ui/Select'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Pagination } from '@/components/ui/Pagination'
+import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
 import { ClienteForm } from './ClienteForm'
 import { clientesApi } from '@/lib/api'
 import { useDebounce, useAutoPageSize } from '@/lib/hooks'
 import { fmtN } from '@/lib/format'
 import { inicialesNombre } from '@/lib/text'
-import type { Cliente, ClienteFiltros } from '@/types/cliente'
+import type { Cliente, ClienteFiltros, ClienteSort } from '@/types/cliente'
 
 const PER_PAGE = 15
 
@@ -27,6 +28,7 @@ export default function ClientesPage() {
   const searchDebounced = useDebounce(search)
   const [estado, setEstado] = useState('todos')
   const [tipo, setTipo] = useState('todos')
+  const [sort, setSort] = useState<ClienteSort>('nombre_asc')
   const [vista, setVista] = useState<Vista>(() => (localStorage.getItem('clientes_vista') as Vista) || 'tabla')
   const [page, setPage] = useState(1)
 
@@ -43,6 +45,7 @@ export default function ClientesPage() {
     search: searchDebounced || undefined,
     estado: estado !== 'todos' ? estado : undefined,
     tipo: tipo !== 'todos' ? tipo : undefined,
+    sort: sort !== 'nombre_asc' ? sort : undefined,
     page,
     per_page: perPage,
   }
@@ -75,8 +78,11 @@ export default function ClientesPage() {
   const clientes = data?.clientes.data ?? []
   const counts = data?.counts
   const meta = data?.clientes
-  const hayFiltros = !!search || estado !== 'todos' || tipo !== 'todos'
-  const limpiarFiltros = () => { setSearch(''); setEstado('todos'); setTipo('todos'); setPage(1) }
+  // El boton "Limpiar" solo aparece con 2+ filtros: con uno solo se quita
+  // directamente desde su propio control (la X del buscador o volver a "todos").
+  const filtrosActivos = [!!search, estado !== 'todos', tipo !== 'todos', sort !== 'nombre_asc'].filter(Boolean).length
+  const hayFiltros = filtrosActivos >= 2
+  const limpiarFiltros = () => { setSearch(''); setEstado('todos'); setTipo('todos'); setSort('nombre_asc'); setPage(1) }
 
   const abrirNuevo = () => { setEditar(null); setFormOpen(true) }
   const abrirEditar = (c: Cliente) => { setEditar(c); setFormOpen(true) }
@@ -110,15 +116,20 @@ export default function ClientesPage() {
       )}
 
       <div className="toolbar">
-        <div className="toolbar-search">
-          <I.Search />
-          <input placeholder="Buscar por nombre, NIT, correo, teléfono…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
-          {isFetching && <Loader2 size={14} className="spin" style={{ color: 'var(--text-faint)' }} />}
-        </div>
+        <BuscadorToolbar placeholder="Buscar por nombre, NIT, correo, teléfono…" value={search} onChange={(v) => { setSearch(v); setPage(1) }} cargando={isFetching} />
         <Select value={estado} onValueChange={(v) => { setEstado(v); setPage(1) }} ariaLabel="Estado"
           options={[{ value: 'todos', label: 'Todos los estados' }, { value: 'activo', label: 'Activos' }, { value: 'inactivo', label: 'Inactivos' }]} />
         <Select value={tipo} onValueChange={(v) => { setTipo(v); setPage(1) }} ariaLabel="Tipo"
           options={[{ value: 'todos', label: 'Todos los tipos' }, { value: 'natural', label: 'Natural' }, { value: 'juridico', label: 'Jurídico' }]} />
+        <Select value={sort} onValueChange={(v) => { setSort(v as ClienteSort); setPage(1) }} ariaLabel="Ordenar por"
+          options={[
+            { value: 'nombre_asc', label: 'Nombre A-Z' },
+            { value: 'nombre_desc', label: 'Nombre Z-A' },
+            { value: 'recientes', label: 'Más recientes' },
+            { value: 'antiguos', label: 'Más antiguos' },
+            { value: 'compras_desc', label: 'Más compras' },
+            { value: 'monto_desc', label: 'Mayor monto comprado' },
+          ]} />
         {hayFiltros && <button className="btn" onClick={limpiarFiltros} title="Limpiar filtros"><X size={15} /> Limpiar</button>}
         <div className="view-toggle">
           <button data-on={vista === 'tabla'} onClick={() => setVista('tabla')} title="Vista de tabla"><List /></button>

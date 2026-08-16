@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Loader2, Eye, Ban, X, List, LayoutGrid } from 'lucide-react'
+import { Loader2, Eye, Ban, X, List, LayoutGrid, SlidersHorizontal } from 'lucide-react'
 import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Pagination } from '@/components/ui/Pagination'
+import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
+import { RangoFechas } from '@/components/ui/RangoFechas'
+import { RangoNumerico } from '@/components/ui/RangoNumerico'
 import { DetalleVenta } from './DetalleVenta'
 import { ESTADO_VENTA, METODO_LABEL, METODO_TONE } from './venta-estados'
 import { ventasApi } from '@/lib/api'
@@ -31,7 +34,17 @@ export default function VentasPage() {
   const searchDebounced = useDebounce(search)
   const [estado, setEstado] = useState('todos')
   const [metodo, setMetodo] = useState('todos')
+  const [sucursal, setSucursal] = useState('todos')
+  const [vendedor, setVendedor] = useState('todos')
+  const [desde, setDesde] = useState('')
+  const [hasta, setHasta] = useState('')
+  const [montoMin, setMontoMin] = useState('')
+  const [montoMax, setMontoMax] = useState('')
+  // Se debouncean para no lanzar una petición por cada tecla del rango
+  const montoMinDeb = useDebounce(montoMin)
+  const montoMaxDeb = useDebounce(montoMax)
   const [sort, setSort] = useState<VentaFiltros['sort']>('fecha_desc')
+  const [panelAbierto, setPanelAbierto] = useState(false)
   const [vista, setVista] = useState<Vista>(() => vistaInicial('ventas_vista'))
   const [page, setPage] = useState(1)
   const navigate = useNavigate()
@@ -59,6 +72,12 @@ export default function VentasPage() {
     search: searchDebounced || undefined,
     estado: estado !== 'todos' ? estado : undefined,
     metodo_pago: metodo !== 'todos' ? metodo : undefined,
+    sucursal_id: sucursal !== 'todos' ? Number(sucursal) : undefined,
+    vendedor_id: vendedor !== 'todos' ? Number(vendedor) : undefined,
+    fecha_inicio: desde || undefined,
+    fecha_fin: hasta || undefined,
+    monto_min: montoMinDeb ? Number(montoMinDeb) : undefined,
+    monto_max: montoMaxDeb ? Number(montoMaxDeb) : undefined,
     sort, page, per_page: perPage,
   }
 
@@ -83,8 +102,27 @@ export default function VentasPage() {
   const ventas = data?.ventas.data ?? []
   const stats = data?.estadisticas
   const meta = data?.ventas
-  const hayFiltros = !!search || estado !== 'todos' || metodo !== 'todos' || sort !== 'fecha_desc'
-  const limpiarFiltros = () => { setSearch(''); setEstado('todos'); setMetodo('todos'); setSort('fecha_desc'); setPage(1) }
+  const catalogos = data?.catalogos
+
+  // Cuántos filtros del panel están activos: se muestra en el botón para que no
+  // queden filtros aplicados fuera de la vista sin ninguna señal.
+  const filtrosAvanzados = [
+    sucursal !== 'todos', vendedor !== 'todos', !!desde || !!hasta, !!montoMin || !!montoMax,
+  ].filter(Boolean).length
+
+  // El botón "Limpiar" solo aparece con 2+ filtros: con uno solo se quita
+  // directamente desde su propio control (la X del buscador o volver a "todos").
+  const filtrosActivos = [!!search, estado !== 'todos', metodo !== 'todos', sort !== 'fecha_desc']
+    .filter(Boolean).length + filtrosAvanzados
+  const hayFiltros = filtrosActivos >= 2
+  const limpiarFiltros = () => {
+    setSearch(''); setEstado('todos'); setMetodo('todos'); setSort('fecha_desc')
+    setSucursal('todos'); setVendedor('todos'); setDesde(''); setHasta('')
+    setMontoMin(''); setMontoMax(''); setPage(1)
+  }
+  const cambiarRango = (r: { desde: string; hasta: string }) => {
+    setDesde(r.desde); setHasta(r.hasta); setPage(1)
+  }
 
   return (
     <>
@@ -114,11 +152,7 @@ export default function VentasPage() {
       )}
 
       <div className="toolbar">
-        <div className="toolbar-search">
-          <I.Search />
-          <input placeholder="Buscar por N° venta, cliente o producto…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
-          {isFetching && <Loader2 size={14} className="spin" style={{ color: 'var(--text-faint)' }} />}
-        </div>
+        <BuscadorToolbar placeholder="Buscar por N° venta, cliente o producto…" value={search} onChange={(v) => { setSearch(v); setPage(1) }} cargando={isFetching} />
         <Select value={estado} onValueChange={(v) => { setEstado(v); setPage(1) }} ariaLabel="Estado"
           options={[
             { value: 'todos', label: 'Todos los estados' },
@@ -142,12 +176,32 @@ export default function VentasPage() {
             { value: 'total_desc', label: 'Mayor total' },
             { value: 'total_asc', label: 'Menor total' },
           ]} />
+        <button className="btn" data-on={panelAbierto || undefined} onClick={() => setPanelAbierto((v) => !v)}
+          title="Más filtros" aria-expanded={panelAbierto}>
+          <SlidersHorizontal size={15} /> Más filtros
+          {filtrosAvanzados > 0 && <span className="btn-conteo">{filtrosAvanzados}</span>}
+        </button>
         {hayFiltros && <button className="btn" onClick={limpiarFiltros} title="Limpiar filtros"><X size={15} /> Limpiar</button>}
         <div className="view-toggle">
           <button data-on={vista === 'tabla'} onClick={() => setVista('tabla')} title="Vista de tabla"><List /></button>
           <button data-on={vista === 'cards'} onClick={() => setVista('cards')} title="Vista de tarjetas"><LayoutGrid /></button>
         </div>
       </div>
+
+      {/* Filtros de acotación: quién, cuándo, cuánto */}
+      {panelAbierto && (
+        <div className="filtros-panel">
+          <Select value={sucursal} onValueChange={(v) => { setSucursal(v); setPage(1) }} ariaLabel="Sucursal"
+            options={[{ value: 'todos', label: 'Todas las sucursales' }, ...(catalogos?.sucursales ?? []).map((s) => ({ value: String(s.id), label: s.nombre }))]} />
+          <Select value={vendedor} onValueChange={(v) => { setVendedor(v); setPage(1) }} ariaLabel="Vendedor"
+            options={[{ value: 'todos', label: 'Todos los vendedores' }, ...(catalogos?.vendedores ?? []).map((v) => ({ value: String(v.id), label: v.nombre }))]} />
+          <RangoFechas desde={desde} hasta={hasta} onChange={cambiarRango}
+            onLimpiar={() => cambiarRango({ desde: '', hasta: '' })} />
+          <RangoNumerico prefijo="Q" etiqueta="Monto" min={montoMin} max={montoMax}
+            onChange={(r) => { setMontoMin(r.min); setMontoMax(r.max); setPage(1) }}
+            onLimpiar={() => { setMontoMin(''); setMontoMax(''); setPage(1) }} />
+        </div>
+      )}
 
       {isLoading ? (
         <div className="card"><div className="empty" style={{ padding: 80 }}><Loader2 size={26} className="spin" style={{ color: 'var(--accent)' }} /><div>Cargando…</div></div></div>

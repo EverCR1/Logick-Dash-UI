@@ -7,6 +7,7 @@ import { Select } from '@/components/ui/Select'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Pagination } from '@/components/ui/Pagination'
+import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
 import { Lightbox } from '@/components/ui/Lightbox'
 import { CategoriaForm } from './CategoriaForm'
 import { categoriasApi } from '@/lib/api'
@@ -104,7 +105,10 @@ export default function CategoriasPage() {
     return { total, raiz, activas, inactivas }
   }, [arbolQuery.data])
 
-  const hayFiltros = !!search || estado !== 'todos'
+  // El boton "Limpiar" solo aparece con 2+ filtros: con uno solo se quita
+  // directamente desde su propio control (la X del buscador o volver a "todos").
+  const filtrosActivos = [!!search, estado !== 'todos'].filter(Boolean).length
+  const hayFiltros = filtrosActivos >= 2
   const limpiarFiltros = () => { setSearch(''); setEstado('todos'); setPage(1) }
 
   const acciones = { onEditar: abrirEditar, onSub: abrirNuevo, onToggle: (c: Categoria) => cambiarEstado.mutate({ id: c.id, estado: c.estado === 'activo' ? 'inactivo' : 'activo' }), onEliminar: setAEliminar, onZoom: setZoom }
@@ -135,10 +139,7 @@ export default function CategoriasPage() {
       )}
 
       <div className="toolbar">
-        <div className="toolbar-search">
-          <I.Search />
-          <input placeholder="Buscar categoría…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
-        </div>
+        <BuscadorToolbar placeholder="Buscar categoría…" value={search} onChange={(v) => { setSearch(v); setPage(1) }} />
         <Select value={estado} onValueChange={(v) => { setEstado(v); setPage(1) }} ariaLabel="Estado"
           options={[{ value: 'todos', label: 'Todos los estados' }, { value: 'activo', label: 'Activos' }, { value: 'inactivo', label: 'Inactivos' }]} />
         {hayFiltros && <button className="btn" onClick={limpiarFiltros} title="Limpiar filtros"><X size={15} /> Limpiar</button>}

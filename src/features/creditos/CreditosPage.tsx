@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/Select'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Pagination } from '@/components/ui/Pagination'
+import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
 import { CreditoForm } from './CreditoForm'
 import { RegistrarPago } from './RegistrarPago'
 import { creditosApi } from '@/lib/api'
@@ -88,7 +89,10 @@ export default function CreditosPage() {
   const creditos = data?.creditos.data ?? []
   const stats = data?.estadisticas
   const meta = data?.creditos
-  const hayFiltros = !!search || estado !== 'todos' || sort !== 'fecha_desc'
+  // El boton "Limpiar" solo aparece con 2+ filtros: con uno solo se quita
+  // directamente desde su propio control (la X del buscador o volver a "todos").
+  const filtrosActivos = [!!search, estado !== 'todos', sort !== 'fecha_desc'].filter(Boolean).length
+  const hayFiltros = filtrosActivos >= 2
   const limpiarFiltros = () => { setSearch(''); setEstado('todos'); setSort('fecha_desc'); setPage(1) }
 
   const abrirEditar = (c: Credito) => { setEditar(c); setFormOpen(true) }
@@ -121,11 +125,7 @@ export default function CreditosPage() {
       )}
 
       <div className="toolbar">
-        <div className="toolbar-search">
-          <I.Search />
-          <input placeholder="Buscar por cliente o concepto…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
-          {isFetching && <Loader2 size={14} className="spin" style={{ color: 'var(--text-faint)' }} />}
-        </div>
+        <BuscadorToolbar placeholder="Buscar por cliente o concepto…" value={search} onChange={(v) => { setSearch(v); setPage(1) }} cargando={isFetching} />
         <Select value={estado} onValueChange={(v) => { setEstado(v); setPage(1) }} ariaLabel="Estado"
           options={[
             { value: 'todos', label: 'Todos los estados' },
