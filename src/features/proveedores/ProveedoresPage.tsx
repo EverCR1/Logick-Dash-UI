@@ -7,12 +7,12 @@ import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { KpiGrid } from '@/components/ui/KpiGrid'
 import { Pagination } from '@/components/ui/Pagination'
 import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
 import { ProveedorForm } from './ProveedorForm'
 import { proveedoresApi } from '@/lib/api'
 import { useDebounce } from '@/lib/hooks'
-import { fmtN } from '@/lib/format'
 import type { Proveedor, ProveedorFiltros } from '@/types/proveedor'
 
 const PER_PAGE = 15
@@ -23,6 +23,12 @@ export default function ProveedoresPage() {
   const [search, setSearch] = useState('')
   const searchDebounced = useDebounce(search)
   const [estado, setEstado] = useState('todos')
+
+  // Pulsar el KPI activo lo desmarca y vuelve a "todos".
+  const filtrarPor = (valor: string) => {
+    setEstado((actual) => (actual === valor ? 'todos' : valor))
+    setPage(1)
+  }
   const [page, setPage] = useState(1)
   const [aEliminar, setAEliminar] = useState<Proveedor | null>(null)
   const [formOpen, setFormOpen] = useState(false)
@@ -66,22 +72,12 @@ export default function ProveedoresPage() {
         action={<button className="btn btn-primary" onClick={() => { setEditar(null); setFormOpen(true) }}><I.Plus /> Nuevo proveedor</button>} />
 
       {counts && (
-        <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-          {[
-            { label: 'Total', value: counts.activos + counts.inactivos, icon: Truck, tone: 'accent' as const, sub: 'proveedores registrados' },
-            { label: 'Activos', value: counts.activos, icon: CheckCircle2, tone: 'pos' as const, sub: 'disponibles' },
-            { label: 'Inactivos', value: counts.inactivos, icon: Ban, tone: 'neg' as const, sub: 'deshabilitados' },
-          ].map((k, i) => {
-            const IconC = k.icon
-            return (
-              <div key={i} className="kpi">
-                <div className="kpi-row1"><div className="kpi-label">{k.label}</div><div className="kpi-icon" data-tone={k.tone}><IconC /></div></div>
-                <div className="kpi-value tnum">{fmtN(k.value)}</div>
-                <div className="kpi-meta"><span>{k.sub}</span></div>
-              </div>
-            )
-          })}
-        </div>
+
+        <KpiGrid items={[
+          { label: 'Total', value: counts.activos + counts.inactivos, icon: Truck, tone: 'accent', sub: 'proveedores registrados', onClick: () => filtrarPor('todos'), activo: estado === 'todos' },
+          { label: 'Activos', value: counts.activos, icon: CheckCircle2, tone: 'pos', sub: 'disponibles', onClick: () => filtrarPor('activo'), activo: estado === 'activo' },
+          { label: 'Inactivos', value: counts.inactivos, icon: Ban, tone: 'neg', sub: 'deshabilitados', onClick: () => filtrarPor('inactivo'), activo: estado === 'inactivo' },
+        ]} />
       )}
 
       <div className="toolbar">

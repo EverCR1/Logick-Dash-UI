@@ -3,12 +3,13 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { toast } from 'sonner'
 import { Loader2, Star, Check, X, RotateCcw, List, LayoutGrid, User } from 'lucide-react'
 import { I } from '@/components/icons'
+import { KpiGrid } from '@/components/ui/KpiGrid'
 import { Select } from '@/components/ui/Select'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Pagination } from '@/components/ui/Pagination'
 import { resenasApi } from '@/lib/api'
 import { useAutoPageSize, vistaInicial } from '@/lib/hooks'
-import { fmtN, fmtFecha } from '@/lib/format'
+import { fmtFecha } from '@/lib/format'
 import type { Resena, ResenaEstado, ResenaFiltros } from '@/types/resena'
 
 const PER_PAGE = 20
@@ -39,6 +40,13 @@ function nombreCuenta(c: Resena['cuenta']): string {
 export default function ResenasPage() {
   const queryClient = useQueryClient()
   const [estado, setEstado] = useState('todos')
+
+  // Pulsar el KPI activo lo desmarca y vuelve a "todos", para poder quitar el
+  // filtro desde el mismo sitio donde se aplicó.
+  const filtrarPor = (valor: string) => {
+    setEstado((actual) => (actual === valor ? 'todos' : valor))
+    setPage(1)
+  }
   const [vista, setVista] = useState<Vista>(() => vistaInicial('resenas_vista'))
   const [page, setPage] = useState(1)
 
@@ -71,23 +79,16 @@ export default function ResenasPage() {
       <PageHeader title="Reseñas" subtitle="Moderación de reseñas de productos" />
 
       {counts && (
-        <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-          {[
-            { label: 'Total', value: counts.total, icon: I.Star, tone: 'accent' as const, sub: 'reseñas' },
-            { label: 'Pendientes', value: counts.pendiente, icon: I.Clock, tone: 'warn' as const, sub: 'por moderar' },
-            { label: 'Publicadas', value: counts.publicado, icon: I.CheckCircle, tone: 'pos' as const, sub: 'visibles' },
-            { label: 'Rechazadas', value: counts.rechazado, icon: I.Ban, tone: 'neg' as const, sub: 'ocultas' },
-          ].map((k, i) => {
-            const IconC = k.icon
-            return (
-              <div key={i} className="kpi">
-                <div className="kpi-row1"><div className="kpi-label">{k.label}</div><div className="kpi-icon" data-tone={k.tone}><IconC /></div></div>
-                <div className="kpi-value tnum">{fmtN(k.value)}</div>
-                <div className="kpi-meta"><span>{k.sub}</span></div>
-              </div>
-            )
-          })}
-        </div>
+        <KpiGrid items={[
+          { label: 'Total', value: counts.total, icon: I.Star, tone: 'accent', sub: 'reseñas',
+            onClick: () => filtrarPor('todos'), activo: estado === 'todos' },
+          { label: 'Pendientes', value: counts.pendiente, icon: I.Clock, tone: 'warn', sub: 'por moderar',
+            onClick: () => filtrarPor('pendiente'), activo: estado === 'pendiente' },
+          { label: 'Publicadas', value: counts.publicado, icon: I.CheckCircle, tone: 'pos', sub: 'visibles',
+            onClick: () => filtrarPor('publicado'), activo: estado === 'publicado' },
+          { label: 'Rechazadas', value: counts.rechazado, icon: I.Ban, tone: 'neg', sub: 'ocultas',
+            onClick: () => filtrarPor('rechazado'), activo: estado === 'rechazado' },
+        ]} />
       )}
 
       <div className="toolbar">

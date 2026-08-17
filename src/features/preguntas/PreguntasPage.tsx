@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { toast } from 'sonner'
 import { Loader2, MessageSquare, Ban, List, LayoutGrid, User } from 'lucide-react'
 import { I } from '@/components/icons'
+import { KpiGrid } from '@/components/ui/KpiGrid'
 import { Select } from '@/components/ui/Select'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -10,7 +11,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { ResponderPregunta } from './ResponderPregunta'
 import { preguntasApi } from '@/lib/api'
 import { useAutoPageSize, vistaInicial } from '@/lib/hooks'
-import { fmtN, fmtFecha } from '@/lib/format'
+import { fmtFecha } from '@/lib/format'
 import type { Pregunta, PreguntaEstado, PreguntaFiltros } from '@/types/pregunta'
 
 const PER_PAGE = 20
@@ -31,6 +32,12 @@ function nombreCuenta(c: Pregunta['cuenta']): string {
 export default function PreguntasPage() {
   const queryClient = useQueryClient()
   const [estado, setEstado] = useState('todos')
+
+  // Pulsar el KPI activo lo desmarca y vuelve a "todos".
+  const filtrarPor = (valor: string) => {
+    setEstado((actual) => (actual === valor ? 'todos' : valor))
+    setPage(1)
+  }
   const [vista, setVista] = useState<Vista>(() => vistaInicial('preguntas_vista'))
   const [page, setPage] = useState(1)
   const [responder, setResponder] = useState<Pregunta | null>(null)
@@ -65,23 +72,16 @@ export default function PreguntasPage() {
       <PageHeader title="Preguntas" subtitle="Preguntas de clientes sobre productos" />
 
       {counts && (
-        <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-          {[
-            { label: 'Total', value: counts.total, icon: I.Help, tone: 'accent' as const, sub: 'preguntas' },
-            { label: 'Pendientes', value: counts.pendiente, icon: I.Clock, tone: 'warn' as const, sub: 'por responder' },
-            { label: 'Respondidas', value: counts.respondida, icon: I.CheckCircle, tone: 'pos' as const, sub: 'contestadas' },
-            { label: 'Rechazadas', value: counts.rechazada, icon: I.Ban, tone: 'neg' as const, sub: 'descartadas' },
-          ].map((k, i) => {
-            const IconC = k.icon
-            return (
-              <div key={i} className="kpi">
-                <div className="kpi-row1"><div className="kpi-label">{k.label}</div><div className="kpi-icon" data-tone={k.tone}><IconC /></div></div>
-                <div className="kpi-value tnum">{fmtN(k.value)}</div>
-                <div className="kpi-meta"><span>{k.sub}</span></div>
-              </div>
-            )
-          })}
-        </div>
+        <KpiGrid items={[
+          { label: 'Total', value: counts.total, icon: I.Help, tone: 'accent', sub: 'preguntas',
+            onClick: () => filtrarPor('todos'), activo: estado === 'todos' },
+          { label: 'Pendientes', value: counts.pendiente, icon: I.Clock, tone: 'warn', sub: 'por responder',
+            onClick: () => filtrarPor('pendiente'), activo: estado === 'pendiente' },
+          { label: 'Respondidas', value: counts.respondida, icon: I.CheckCircle, tone: 'pos', sub: 'contestadas',
+            onClick: () => filtrarPor('respondida'), activo: estado === 'respondida' },
+          { label: 'Rechazadas', value: counts.rechazada, icon: I.Ban, tone: 'neg', sub: 'descartadas',
+            onClick: () => filtrarPor('rechazada'), activo: estado === 'rechazada' },
+        ]} />
       )}
 
       <div className="toolbar">

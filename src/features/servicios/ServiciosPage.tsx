@@ -7,6 +7,7 @@ import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { KpiGrid } from '@/components/ui/KpiGrid'
 import { Pagination } from '@/components/ui/Pagination'
 import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
 import { Lightbox } from '@/components/ui/Lightbox'
@@ -14,7 +15,7 @@ import { RangoNumerico } from '@/components/ui/RangoNumerico'
 import { ServicioForm } from './ServicioForm'
 import { serviciosApi } from '@/lib/api'
 import { useDebounce, useAutoPageSize } from '@/lib/hooks'
-import { q, fmtN } from '@/lib/format'
+import { q } from '@/lib/format'
 import type { Servicio, ServicioFiltros, ServicioMargen, ServicioSort } from '@/types/servicio'
 
 const PER_PAGE = 15
@@ -108,23 +109,12 @@ export default function ServiciosPage() {
         action={<button className="btn btn-primary" onClick={() => { setEditar(null); setFormOpen(true) }}><I.Plus /> Nuevo servicio</button>} />
 
       {counts && (
-        <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-          {[
-            { label: 'Total', value: counts.total, icon: Boxes, tone: 'accent' as const, sub: 'servicios' },
-            { label: 'Activos', value: counts.activos, icon: CheckCircle, tone: 'pos' as const, sub: 'disponibles' },
-            { label: 'En oferta', value: counts.en_oferta, icon: Tag, tone: 'violet' as const, sub: 'con descuento' },
-            { label: 'Margen alto', value: counts.margen_alto, icon: TrendingUp, tone: 'info' as const, sub: 'buena ganancia' },
-          ].map((k, i) => {
-            const IconC = k.icon
-            return (
-              <div key={i} className="kpi">
-                <div className="kpi-row1"><div className="kpi-label">{k.label}</div><div className="kpi-icon" data-tone={k.tone}><IconC /></div></div>
-                <div className="kpi-value tnum">{fmtN(k.value)}</div>
-                <div className="kpi-meta"><span>{k.sub}</span></div>
-              </div>
-            )
-          })}
-        </div>
+        <KpiGrid items={[
+          { label: 'Total', value: counts.total, icon: Boxes, tone: 'accent', sub: 'servicios', onClick: () => { setEstado('todos'); setPage(1) }, activo: estado === 'todos' },
+          { label: 'Activos', value: counts.activos, icon: CheckCircle, tone: 'pos', sub: 'disponibles', onClick: () => { setEstado(estado === 'activo' ? 'todos' : 'activo'); setPage(1) }, activo: estado === 'activo' },
+          { label: 'En oferta', value: counts.en_oferta, icon: Tag, tone: 'violet', sub: 'con descuento' },
+          { label: 'Margen alto', value: counts.margen_alto, icon: TrendingUp, tone: 'info', sub: 'buena ganancia', onClick: () => { setMargen(margen === 'alto' ? 'todos' : 'alto'); setPage(1) }, activo: margen === 'alto' },
+        ]} />
       )}
 
       <div className="toolbar">

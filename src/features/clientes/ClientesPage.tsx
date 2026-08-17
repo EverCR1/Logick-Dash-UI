@@ -7,12 +7,12 @@ import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { KpiGrid } from '@/components/ui/KpiGrid'
 import { Pagination } from '@/components/ui/Pagination'
 import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
 import { ClienteForm } from './ClienteForm'
 import { clientesApi } from '@/lib/api'
 import { useDebounce, useAutoPageSize } from '@/lib/hooks'
-import { fmtN } from '@/lib/format'
 import { inicialesNombre } from '@/lib/text'
 import type { Cliente, ClienteFiltros, ClienteSort } from '@/types/cliente'
 
@@ -96,23 +96,12 @@ export default function ClientesPage() {
       />
 
       {counts && (
-        <div className="kpi-grid">
-          {[
-            { label: 'Activos', value: counts.activos, icon: CheckCircle2, tone: 'pos' as const, sub: 'clientes habilitados' },
-            { label: 'Inactivos', value: counts.inactivos, icon: Ban, tone: 'neg' as const, sub: 'deshabilitados' },
-            { label: 'Naturales', value: counts.naturales, icon: User, tone: 'info' as const, sub: 'personas' },
-            { label: 'Jurídicos', value: counts.juridicos, icon: Building2, tone: 'violet' as const, sub: 'empresas' },
-          ].map((k, i) => {
-            const IconC = k.icon
-            return (
-              <div key={i} className="kpi">
-                <div className="kpi-row1"><div className="kpi-label">{k.label}</div><div className="kpi-icon" data-tone={k.tone}><IconC /></div></div>
-                <div className="kpi-value tnum">{fmtN(k.value)}</div>
-                <div className="kpi-meta"><span>{k.sub}</span></div>
-              </div>
-            )
-          })}
-        </div>
+        <KpiGrid items={[
+          { label: 'Activos', value: counts.activos, icon: CheckCircle2, tone: 'pos', sub: 'clientes habilitados', onClick: () => { setEstado(estado === 'activo' ? 'todos' : 'activo'); setPage(1) }, activo: estado === 'activo' },
+          { label: 'Inactivos', value: counts.inactivos, icon: Ban, tone: 'neg', sub: 'deshabilitados', onClick: () => { setEstado(estado === 'inactivo' ? 'todos' : 'inactivo'); setPage(1) }, activo: estado === 'inactivo' },
+          { label: 'Naturales', value: counts.naturales, icon: User, tone: 'info', sub: 'personas', onClick: () => { setTipo(tipo === 'natural' ? 'todos' : 'natural'); setPage(1) }, activo: tipo === 'natural' },
+          { label: 'Jurídicos', value: counts.juridicos, icon: Building2, tone: 'violet', sub: 'empresas', onClick: () => { setTipo(tipo === 'juridico' ? 'todos' : 'juridico'); setPage(1) }, activo: tipo === 'juridico' },
+        ]} />
       )}
 
       <div className="toolbar">

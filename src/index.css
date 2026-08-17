@@ -652,7 +652,78 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
   grid-template-columns: repeat(4, 1fr);
   gap: var(--gap-grid);
 }
-@media (max-width: 1180px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+/* Ajusta el número de columnas al ancho disponible. Reemplaza al style inline
+   que repetían las páginas, para que las media queries puedan sobreescribirlo. */
+.kpi-grid-auto { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+
+@media (max-width: 1180px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* En móvil los KPIs empujaban la tabla fuera de pantalla. Una rejilla, aunque se
+   compacte, sigue creciendo en alto con cada fila: con 6 indicadores son 3 filas.
+   Aquí pasan a una sola tira deslizable en horizontal, así el alto es constante
+   sin importar cuántos haya y los registros quedan a la vista. */
+@media (max-width: 640px) {
+  .kpi-grid,
+  .kpi-grid-auto {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    padding-bottom: 2px;
+    /* Sin barra visible: el KPI cortado en el borde ya indica que hay más */
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .kpi-grid::-webkit-scrollbar,
+  .kpi-grid-auto::-webkit-scrollbar { display: none; }
+
+  .kpi {
+    flex: 0 0 auto;
+    min-width: 124px;
+    scroll-snap-align: start;
+    padding: 8px 10px;
+    border-radius: 10px;
+  }
+  .kpi-row1 { margin-bottom: 2px; gap: 8px; }
+  .kpi-label { font-size: 10.5px; line-height: 1.2; }
+  .kpi-value { font-size: 16px; }
+  .kpi-value .currency { font-size: 10.5px; }
+  .kpi-icon { width: 18px; height: 18px; border-radius: 5px; }
+  .kpi-icon svg { width: 11px; height: 11px; }
+  .kpi-meta { display: none; }
+  /* El realce al pasar el cursor no aplica en táctil y desplaza el layout */
+  .kpi:hover { transform: none; box-shadow: var(--card-shadow); }
+}
+
+/* Ventana angosta pero con mouse (no hay gesto de deslizar): se devuelve una
+   barra fina para poder arrastrar. En táctil sigue oculta, ahí el dedo basta. */
+@media (max-width: 640px) and (pointer: fine) {
+  .kpi-grid,
+  .kpi-grid-auto { scrollbar-width: thin; padding-bottom: 6px; }
+  .kpi-grid::-webkit-scrollbar,
+  .kpi-grid-auto::-webkit-scrollbar { display: block; height: 6px; }
+  .kpi-grid::-webkit-scrollbar-track,
+  .kpi-grid-auto::-webkit-scrollbar-track { background: transparent; }
+  .kpi-grid::-webkit-scrollbar-thumb,
+  .kpi-grid-auto::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }
+}
+
+/* KPI que aplica su propio filtro al pulsarlo */
+.kpi-accion {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.kpi-accion:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.kpi[data-activo="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.kpi[data-activo="true"] .kpi-label { color: var(--accent-text); font-weight: 600; }
 
 .kpi {
   padding: var(--pad-card);
@@ -1754,6 +1825,26 @@ input.rango-date { width: 138px; }
 }
 .multi-trigger:focus-visible { outline: none; border-color: var(--accent); }
 .multi-trigger .ph { color: var(--text-faint); font-size: 13.5px; }
+
+/* Variante para barras de filtros: una sola línea, a la altura del resto de
+   controles (34px) y sin crecer al marcar más opciones. */
+.multi-trigger[data-compacto] {
+  width: auto;
+  min-width: 168px;
+  min-height: 34px;
+  height: 34px;
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding: 0 10px;
+}
+.multi-trigger[data-compacto] .ph,
+.multi-trigger[data-compacto] .multi-resumen {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.multi-trigger[data-compacto] .multi-resumen { color: var(--text); }
 .multi-chip {
   display: inline-flex; align-items: center; gap: 5px;
   background: var(--accent-soft); color: var(--accent-text);
@@ -1774,6 +1865,14 @@ input.rango-date { width: 138px; }
   overflow: hidden;
   width: var(--radix-dropdown-menu-trigger-width);
   animation: menu-in 0.12s ease;
+}
+/* El trigger compacto es angosto (168px) y ataría el desplegable a ese ancho,
+   recortando los nombres. Aquí crece con el contenido, con el trigger como piso
+   y un tope para que no se desborde en pantallas chicas. */
+.multi-content[data-compacto] {
+  width: auto;
+  min-width: var(--radix-dropdown-menu-trigger-width);
+  max-width: min(340px, calc(100vw - 32px));
 }
 .multi-search {
   display: flex; align-items: center; gap: 7px;

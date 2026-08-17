@@ -6,12 +6,13 @@ import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { KpiGrid } from '@/components/ui/KpiGrid'
 import { Pagination } from '@/components/ui/Pagination'
 import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
 import { CuponForm } from './CuponForm'
 import { cuponesApi } from '@/lib/api'
 import { useDebounce, useAutoPageSize, vistaInicial } from '@/lib/hooks'
-import { q, fmtN } from '@/lib/format'
+import { q } from '@/lib/format'
 import type { Cupon, CuponFiltros } from '@/types/cupon'
 
 const PER_PAGE = 15
@@ -25,6 +26,12 @@ export default function CuponesPage() {
   const [search, setSearch] = useState('')
   const searchDebounced = useDebounce(search)
   const [estado, setEstado] = useState('todos')
+
+  // Pulsar el KPI activo lo desmarca y vuelve a "todos".
+  const filtrarPor = (valor: string) => {
+    setEstado((actual) => (actual === valor ? 'todos' : valor))
+    setPage(1)
+  }
   const [vista, setVista] = useState<Vista>(() => vistaInicial('cupones_vista'))
   const [page, setPage] = useState(1)
   const [aEliminar, setAEliminar] = useState<Cupon | null>(null)
@@ -73,22 +80,12 @@ export default function CuponesPage() {
         action={<button className="btn btn-primary" onClick={() => { setEditar(null); setFormOpen(true) }}><I.Plus /> Nuevo cupón</button>} />
 
       {counts && (
-        <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-          {[
-            { label: 'Total', value: counts.total, icon: Ticket, tone: 'accent' as const, sub: 'cupones' },
-            { label: 'Activos', value: counts.activos, icon: CheckCircle, tone: 'pos' as const, sub: 'vigentes' },
-            { label: 'Inactivos', value: counts.inactivos, icon: Ban, tone: 'neg' as const, sub: 'deshabilitados' },
-          ].map((k, i) => {
-            const IconC = k.icon
-            return (
-              <div key={i} className="kpi">
-                <div className="kpi-row1"><div className="kpi-label">{k.label}</div><div className="kpi-icon" data-tone={k.tone}><IconC /></div></div>
-                <div className="kpi-value tnum">{fmtN(k.value)}</div>
-                <div className="kpi-meta"><span>{k.sub}</span></div>
-              </div>
-            )
-          })}
-        </div>
+
+        <KpiGrid items={[
+          { label: 'Total', value: counts.total, icon: Ticket, tone: 'accent', sub: 'cupones', onClick: () => filtrarPor('todos'), activo: estado === 'todos' },
+          { label: 'Activos', value: counts.activos, icon: CheckCircle, tone: 'pos', sub: 'vigentes', onClick: () => filtrarPor('activo'), activo: estado === 'activo' },
+          { label: 'Inactivos', value: counts.inactivos, icon: Ban, tone: 'neg', sub: 'deshabilitados', onClick: () => filtrarPor('inactivo'), activo: estado === 'inactivo' },
+        ]} />
       )}
 
       <div className="toolbar">

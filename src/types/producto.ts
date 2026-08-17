@@ -56,8 +56,10 @@ export interface ProductoAtributo {
 export interface ProductoFiltros {
   search?: string
   estado?: string
-  categoria_id?: number
-  proveedor_id?: number
+  /** Uno o varios ids separados por coma ("3" o "3,7,12"). Criterio OR. */
+  categoria_id?: string
+  /** Uno o varios ids separados por coma. Criterio OR. */
+  proveedor_id?: string
   stock?: string
   sort?: string
   grupo_variante?: string

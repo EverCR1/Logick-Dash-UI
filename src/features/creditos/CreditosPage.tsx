@@ -7,6 +7,7 @@ import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { KpiGrid } from '@/components/ui/KpiGrid'
 import { Pagination } from '@/components/ui/Pagination'
 import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
 import { CreditoForm } from './CreditoForm'
@@ -103,25 +104,14 @@ export default function CreditosPage() {
         action={<button className="btn btn-primary" onClick={() => { setEditar(null); setFormOpen(true) }}><I.Plus /> Nuevo crédito</button>} />
 
       {stats && (
-        <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-          {[
-            { label: 'Total', value: fmtN(stats.total_creditos), icon: I.Card, tone: 'accent' as const, sub: 'créditos' },
-            { label: 'Activos', value: fmtN(stats.activos), icon: I.Clock, tone: 'warn' as const, sub: 'en curso' },
-            { label: 'Abonados', value: fmtN(stats.abonados), icon: I.Wallet, tone: 'info' as const, sub: 'con abonos' },
-            { label: 'Pagados', value: fmtN(stats.pagados), icon: I.CheckCircle, tone: 'pos' as const, sub: 'liquidados' },
-            { label: 'Pendiente por cobrar', value: fmtN(Number(stats.capital_pendiente_activos) + Number(stats.capital_pendiente_abonados)), currency: 'Q', icon: I.Cash, tone: 'neg' as const, sub: 'capital pendiente' },
-            { label: 'Recuperado', value: fmtN(stats.total_recuperado), currency: 'Q', icon: I.Trophy, tone: 'pos' as const, sub: 'cobrado' },
-          ].map((k, i) => {
-            const IconC = k.icon
-            return (
-              <div key={i} className="kpi">
-                <div className="kpi-row1"><div className="kpi-label">{k.label}</div><div className="kpi-icon" data-tone={k.tone}><IconC /></div></div>
-                <div className="kpi-value tnum">{k.currency && <span className="currency">{k.currency}</span>}{k.value}</div>
-                <div className="kpi-meta"><span>{k.sub}</span></div>
-              </div>
-            )
-          })}
-        </div>
+        <KpiGrid items={[
+          { label: 'Total', value: fmtN(stats.total_creditos), icon: I.Card, tone: 'accent', sub: 'créditos', onClick: () => { setEstado('todos'); setPage(1) }, activo: estado === 'todos' },
+          { label: 'Activos', value: fmtN(stats.activos), icon: I.Clock, tone: 'warn', sub: 'en curso', onClick: () => { setEstado(estado === 'activo' ? 'todos' : 'activo'); setPage(1) }, activo: estado === 'activo' },
+          { label: 'Abonados', value: fmtN(stats.abonados), icon: I.Wallet, tone: 'info', sub: 'con abonos', onClick: () => { setEstado(estado === 'abonado' ? 'todos' : 'abonado'); setPage(1) }, activo: estado === 'abonado' },
+          { label: 'Pagados', value: fmtN(stats.pagados), icon: I.CheckCircle, tone: 'pos', sub: 'liquidados', onClick: () => { setEstado(estado === 'pagado' ? 'todos' : 'pagado'); setPage(1) }, activo: estado === 'pagado' },
+          { label: 'Pendiente por cobrar', value: fmtN(Number(stats.capital_pendiente_activos) + Number(stats.capital_pendiente_abonados)), currency: 'Q', icon: I.Cash, tone: 'neg', sub: 'capital pendiente' },
+          { label: 'Recuperado', value: fmtN(stats.total_recuperado), currency: 'Q', icon: I.Trophy, tone: 'pos', sub: 'cobrado' },
+        ]} />
       )}
 
       <div className="toolbar">

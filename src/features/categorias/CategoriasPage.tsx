@@ -6,13 +6,13 @@ import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { KpiGrid } from '@/components/ui/KpiGrid'
 import { Pagination } from '@/components/ui/Pagination'
 import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
 import { Lightbox } from '@/components/ui/Lightbox'
 import { CategoriaForm } from './CategoriaForm'
 import { categoriasApi } from '@/lib/api'
 import { useDebounce } from '@/lib/hooks'
-import { fmtN } from '@/lib/format'
 import type { Categoria, CategoriaArbol, CategoriaFiltros } from '@/types/categoria'
 
 const PER_PAGE = 20
@@ -49,6 +49,12 @@ export default function CategoriasPage() {
   const [search, setSearch] = useState('')
   const searchDebounced = useDebounce(search)
   const [estado, setEstado] = useState('todos')
+
+  // Pulsar el KPI activo lo desmarca y vuelve a "todos".
+  const filtrarPor = (valor: string) => {
+    setEstado((actual) => (actual === valor ? 'todos' : valor))
+    setPage(1)
+  }
   const [page, setPage] = useState(1)
   const [aEliminar, setAEliminar] = useState<Categoria | null>(null)
   const [formOpen, setFormOpen] = useState(false)
@@ -119,23 +125,13 @@ export default function CategoriasPage() {
         action={<button className="btn btn-primary" onClick={() => abrirNuevo(null)}><I.Plus /> Nueva categoría</button>} />
 
       {arbolQuery.data && (
-        <div className="kpi-grid">
-          {[
-            { label: 'Total', value: totales.total, icon: I.Layers, tone: 'accent' as const, sub: 'categorías' },
-            { label: 'Nivel 0', value: totales.raiz, icon: Network, tone: 'info' as const, sub: 'categorías raíz' },
-            { label: 'Activas', value: totales.activas, icon: I.CheckCircle, tone: 'pos' as const, sub: 'visibles' },
-            { label: 'Inactivas', value: totales.inactivas, icon: I.Ban, tone: 'neg' as const, sub: 'ocultas' },
-          ].map((k, i) => {
-            const IconC = k.icon
-            return (
-              <div key={i} className="kpi">
-                <div className="kpi-row1"><div className="kpi-label">{k.label}</div><div className="kpi-icon" data-tone={k.tone}><IconC /></div></div>
-                <div className="kpi-value tnum">{fmtN(k.value)}</div>
-                <div className="kpi-meta"><span>{k.sub}</span></div>
-              </div>
-            )
-          })}
-        </div>
+
+        <KpiGrid items={[
+          { label: 'Total', value: totales.total, icon: I.Layers, tone: 'accent', sub: 'categorías', onClick: () => filtrarPor('todos'), activo: estado === 'todos' },
+          { label: 'Nivel 0', value: totales.raiz, icon: Network, tone: 'info', sub: 'categorías raíz' },
+          { label: 'Activas', value: totales.activas, icon: I.CheckCircle, tone: 'pos', sub: 'visibles', onClick: () => filtrarPor('activo'), activo: estado === 'activo' },
+          { label: 'Inactivas', value: totales.inactivas, icon: I.Ban, tone: 'neg', sub: 'ocultas', onClick: () => filtrarPor('inactivo'), activo: estado === 'inactivo' },
+        ]} />
       )}
 
       <div className="toolbar">

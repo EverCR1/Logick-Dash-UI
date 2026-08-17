@@ -16,6 +16,20 @@ interface MultiSelectProps {
   placeholder?: string
   searchable?: boolean
   searchPlaceholder?: string
+  /**
+   * Resume la selección en una línea ("3 categorías") en vez de listar chips.
+   * Pensado para barras de filtros, donde los chips ensancharían la toolbar
+   * cada vez que se marca una opción.
+   */
+  compacto?: boolean
+  /** Palabra para el resumen en plural: "3 categorías". */
+  sustantivo?: string
+  /**
+   * Etiqueta "Raíz" / "Nivel N" junto a cada opción. Útil al asignar categorías,
+   * donde el nivel es un dato a considerar; en un filtro solo resta ancho al
+   * nombre, y la sangría ya comunica la jerarquía.
+   */
+  mostrarNivel?: boolean
 }
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
@@ -24,7 +38,11 @@ const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCa
  * Selector múltiple con checkboxes (Radix DropdownMenu) estilado con el sistema.
  * Se mantiene abierto al marcar opciones (onSelect preventDefault).
  */
-export function MultiSelect({ options, selected, onChange, placeholder = 'Seleccionar…', searchable = false, searchPlaceholder = 'Buscar…' }: MultiSelectProps) {
+export function MultiSelect({
+  options, selected, onChange, placeholder = 'Seleccionar…',
+  searchable = false, searchPlaceholder = 'Buscar…', compacto = false, sustantivo,
+  mostrarNivel = true,
+}: MultiSelectProps) {
   const [query, setQuery] = useState('')
 
   const toggle = (value: number) => {
@@ -35,11 +53,20 @@ export function MultiSelect({ options, selected, onChange, placeholder = 'Selecc
   const q = norm(query.trim())
   const visibles = q ? options.filter((o) => norm(o.label).includes(q)) : options
 
+  // Con una sola opción marcada se muestra su nombre; con varias, el conteo.
+  const resumen = chips.length === 0
+    ? placeholder
+    : chips.length === 1
+      ? chips[0].label
+      : `${chips.length} ${sustantivo ?? 'seleccionadas'}`
+
   return (
     <DropdownMenu.Root onOpenChange={(o) => { if (!o) setQuery('') }}>
       <DropdownMenu.Trigger asChild>
-        <button type="button" className="multi-trigger">
-          {chips.length === 0 ? (
+        <button type="button" className="multi-trigger" data-compacto={compacto || undefined}>
+          {compacto ? (
+            <span className={chips.length === 0 ? 'ph' : 'multi-resumen'}>{resumen}</span>
+          ) : chips.length === 0 ? (
             <span className="ph">{placeholder}</span>
           ) : (
             chips.map((c) => (
@@ -59,7 +86,7 @@ export function MultiSelect({ options, selected, onChange, placeholder = 'Selecc
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content className="multi-content" align="start" sideOffset={6}>
+        <DropdownMenu.Content className="multi-content" data-compacto={compacto || undefined} align="start" sideOffset={6}>
           {searchable && (
             <div className="multi-search" onKeyDown={(e) => e.stopPropagation()}>
               <Search size={14} />
@@ -82,10 +109,12 @@ export function MultiSelect({ options, selected, onChange, placeholder = 'Selecc
                   data-checked={checked}
                   onSelect={(e) => { e.preventDefault(); toggle(o.value) }}
                   style={o.nivel ? { paddingLeft: 10 + o.nivel * 16 } : undefined}
+                  // Los nombres largos se recortan con ellipsis; el title los muestra completos
+                  title={o.label}
                 >
                   <span className="box">{checked && <Check size={11} />}</span>
                   <span className="multi-item-label">{o.label}</span>
-                  {o.nivel != null && <span className="multi-item-nivel">{o.nivel === 0 ? 'Raíz' : `Nivel ${o.nivel}`}</span>}
+                  {mostrarNivel && o.nivel != null && <span className="multi-item-nivel">{o.nivel === 0 ? 'Raíz' : `Nivel ${o.nivel}`}</span>}
                 </DropdownMenu.Item>
               )
             })}

@@ -4,6 +4,7 @@ import { Loader2, Eye, X, List, LayoutGrid, User } from 'lucide-react'
 import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { KpiGrid } from '@/components/ui/KpiGrid'
 import { Pagination } from '@/components/ui/Pagination'
 import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
 import { RangoFechas } from '@/components/ui/RangoFechas'
@@ -11,7 +12,7 @@ import { DetallePedido } from './DetallePedido'
 import { ESTADO_PEDIDO } from './pedido-estados'
 import { pedidosTiendaApi } from '@/lib/api'
 import { useDebounce, useAutoPageSize, vistaInicial } from '@/lib/hooks'
-import { q, fmtN, fmtFecha } from '@/lib/format'
+import { q, fmtFecha } from '@/lib/format'
 import type { Pedido, PedidoFiltros, PedidoSort } from '@/types/pedido'
 
 const PER_PAGE = 15
@@ -69,25 +70,14 @@ export default function PedidosPage() {
       <PageHeader title="Pedidos" subtitle="Pedidos recibidos desde la tienda en línea" />
 
       {counts && (
-        <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}>
-          {[
-            { label: 'Total', value: counts.total, icon: I.Store, tone: 'accent' as const, sub: 'pedidos' },
-            { label: 'Activos', value: counts.activos, icon: I.Clock, tone: 'warn' as const, sub: 'en proceso' },
-            { label: 'Pendientes', value: counts.pendiente, icon: I.Inbox, tone: 'info' as const, sub: 'por confirmar' },
-            { label: 'Enviados', value: counts.enviado, icon: I.Truck, tone: 'violet' as const, sub: 'en camino' },
-            { label: 'Entregados', value: counts.entregado, icon: I.CheckCircle, tone: 'pos' as const, sub: 'completados' },
-            { label: 'Cancelados', value: counts.cancelado, icon: I.Ban, tone: 'neg' as const, sub: 'anulados' },
-          ].map((k, i) => {
-            const IconC = k.icon
-            return (
-              <div key={i} className="kpi">
-                <div className="kpi-row1"><div className="kpi-label">{k.label}</div><div className="kpi-icon" data-tone={k.tone}><IconC /></div></div>
-                <div className="kpi-value tnum">{fmtN(k.value)}</div>
-                <div className="kpi-meta"><span>{k.sub}</span></div>
-              </div>
-            )
-          })}
-        </div>
+        <KpiGrid items={[
+          { label: 'Total', value: counts.total, icon: I.Store, tone: 'accent', sub: 'pedidos', onClick: () => { setEstado('todos'); setPage(1) }, activo: estado === 'todos' },
+          { label: 'Activos', value: counts.activos, icon: I.Clock, tone: 'warn', sub: 'en proceso' },
+          { label: 'Pendientes', value: counts.pendiente, icon: I.Inbox, tone: 'info', sub: 'por confirmar', onClick: () => { setEstado(estado === 'pendiente' ? 'todos' : 'pendiente'); setPage(1) }, activo: estado === 'pendiente' },
+          { label: 'Enviados', value: counts.enviado, icon: I.Truck, tone: 'violet', sub: 'en camino', onClick: () => { setEstado(estado === 'enviado' ? 'todos' : 'enviado'); setPage(1) }, activo: estado === 'enviado' },
+          { label: 'Entregados', value: counts.entregado, icon: I.CheckCircle, tone: 'pos', sub: 'completados', onClick: () => { setEstado(estado === 'entregado' ? 'todos' : 'entregado'); setPage(1) }, activo: estado === 'entregado' },
+          { label: 'Cancelados', value: counts.cancelado, icon: I.Ban, tone: 'neg', sub: 'anulados', onClick: () => { setEstado(estado === 'cancelado' ? 'todos' : 'cancelado'); setPage(1) }, activo: estado === 'cancelado' },
+        ]} />
       )}
 
       <div className="toolbar">

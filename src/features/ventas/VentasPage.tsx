@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Loader2, Eye, Ban, X, List, LayoutGrid, SlidersHorizontal } from 'lucide-react'
 import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
+import { KpiGrid } from '@/components/ui/KpiGrid'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Pagination } from '@/components/ui/Pagination'
@@ -130,25 +131,14 @@ export default function VentasPage() {
         action={<button className="btn btn-primary" onClick={() => navigate('/ventas/nueva')}><I.Plus /> Nueva venta</button>} />
 
       {stats && (
-        <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}>
-          {[
-            { label: 'Hoy', value: fmtN(stats.totales.hoy.total), currency: 'Q', icon: I.Cart, tone: 'pos' as const, sub: `${stats.totales.hoy.ventas} ventas` },
-            { label: 'Semana', value: fmtN(stats.totales.semana.total), currency: 'Q', icon: I.Cal, tone: 'info' as const, sub: `${stats.totales.semana.ventas} ventas` },
-            { label: 'Mes', value: fmtN(stats.totales.mes.total), currency: 'Q', icon: I.TrendUp, tone: 'violet' as const, sub: `${stats.totales.mes.ventas} ventas` },
-            { label: 'Completadas', value: fmtN(stats.completadas), icon: I.CheckCircle, tone: 'pos' as const, sub: 'cerradas' },
-            { label: 'Pendientes', value: fmtN(stats.pendientes), icon: I.Clock, tone: 'warn' as const, sub: 'por cobrar' },
-            { label: 'Canceladas', value: fmtN(stats.canceladas), icon: I.Ban, tone: 'neg' as const, sub: 'anuladas' },
-          ].map((k, i) => {
-            const IconC = k.icon
-            return (
-              <div key={i} className="kpi">
-                <div className="kpi-row1"><div className="kpi-label">{k.label}</div><div className="kpi-icon" data-tone={k.tone}><IconC /></div></div>
-                <div className="kpi-value tnum">{k.currency && <span className="currency">{k.currency}</span>}{k.value}</div>
-                <div className="kpi-meta"><span>{k.sub}</span></div>
-              </div>
-            )
-          })}
-        </div>
+        <KpiGrid items={[
+          { label: 'Hoy', value: fmtN(stats.totales.hoy.total), currency: 'Q', icon: I.Cart, tone: 'pos', sub: `${stats.totales.hoy.ventas} ventas` },
+          { label: 'Semana', value: fmtN(stats.totales.semana.total), currency: 'Q', icon: I.Cal, tone: 'info', sub: `${stats.totales.semana.ventas} ventas` },
+          { label: 'Mes', value: fmtN(stats.totales.mes.total), currency: 'Q', icon: I.TrendUp, tone: 'violet', sub: `${stats.totales.mes.ventas} ventas` },
+          { label: 'Completadas', value: fmtN(stats.completadas), icon: I.CheckCircle, tone: 'pos', sub: 'cerradas', onClick: () => { setEstado(estado === 'completada' ? 'todos' : 'completada'); setPage(1) }, activo: estado === 'completada' },
+          { label: 'Pendientes', value: fmtN(stats.pendientes), icon: I.Clock, tone: 'warn', sub: 'por cobrar', onClick: () => { setEstado(estado === 'pendiente' ? 'todos' : 'pendiente'); setPage(1) }, activo: estado === 'pendiente' },
+          { label: 'Canceladas', value: fmtN(stats.canceladas), icon: I.Ban, tone: 'neg', sub: 'anuladas', onClick: () => { setEstado(estado === 'cancelada' ? 'todos' : 'cancelada'); setPage(1) }, activo: estado === 'cancelada' },
+        ]} />
       )}
 
       <div className="toolbar">

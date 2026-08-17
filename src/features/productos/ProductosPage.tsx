@@ -5,6 +5,8 @@ import { toast } from 'sonner'
 import { Loader2, Eye, Pencil, Trash2, LayoutGrid, List, Ban, CheckCircle2, X, Package, PackagePlus, CheckCircle, AlertTriangle, XCircle, Tag } from 'lucide-react'
 import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
+import { KpiGrid } from '@/components/ui/KpiGrid'
+import { MultiSelect } from '@/components/ui/MultiSelect'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Lightbox } from '@/components/ui/Lightbox'
 import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
@@ -27,8 +29,8 @@ export default function ProductosPage() {
   const [searchDebounced, setSearchDebounced] = useState('')
   const [estado, setEstado] = useState('todos')
   const [stock, setStock] = useState('todos')
-  const [categoria, setCategoria] = useState('todos')
-  const [proveedor, setProveedor] = useState('todos')
+  const [categoriasSel, setCategoriasSel] = useState<number[]>([])
+  const [proveedoresSel, setProveedoresSel] = useState<number[]>([])
   const [sort, setSort] = useState('nombre_asc')
   const [page, setPage] = useState(1)
   const [aEliminar, setAEliminar] = useState<Producto | null>(null)
@@ -64,8 +66,8 @@ export default function ProductosPage() {
     search: searchDebounced || undefined,
     estado: estado !== 'todos' ? estado : undefined,
     stock: stock !== 'todos' ? stock : undefined,
-    categoria_id: categoria !== 'todos' ? Number(categoria) : undefined,
-    proveedor_id: proveedor !== 'todos' ? Number(proveedor) : undefined,
+    categoria_id: categoriasSel.length ? categoriasSel.join(',') : undefined,
+    proveedor_id: proveedoresSel.length ? proveedoresSel.join(',') : undefined,
     grupo_variante: grupoVariante || undefined,
     sort: sort !== 'nombre_asc' ? sort : undefined,
     page,
@@ -114,21 +116,17 @@ export default function ProductosPage() {
   const counts = data?.counts
   const meta = data?.productos
 
-  const opcionesCategoria = [
-    { value: 'todos', label: 'Todas las categorías' },
-    ...categorias.map((c) => ({ value: String(c.id), label: '— '.repeat(c.nivel) + c.nombre })),
-  ]
+  // El MultiSelect ya representa "todas" con la lista vacía, así que no lleva
+  // una opción explícita para eso; la sangría comunica la jerarquía.
+  const opcionesCategoria = categorias.map((c) => ({ value: c.id, label: c.nombre, nivel: c.nivel }))
 
-  const opcionesProveedor = [
-    { value: 'todos', label: 'Todos los proveedores' },
-    ...proveedores.map((p) => ({ value: String(p.id), label: p.nombre })),
-  ]
+  const opcionesProveedor = proveedores.map((p) => ({ value: p.id, label: p.nombre }))
 
   // El botón "Limpiar" solo aparece con 2+ filtros: con uno solo se quita
   // directamente desde su propio control (la X del buscador o volver a "todos").
   const filtrosActivos = [
     !!search, estado !== 'todos', stock !== 'todos',
-    categoria !== 'todos', proveedor !== 'todos', sort !== 'nombre_asc', !!grupoVariante,
+    categoriasSel.length > 0, proveedoresSel.length > 0, sort !== 'nombre_asc', !!grupoVariante,
   ].filter(Boolean).length
 
   const onToggleEstado = (p: Producto) =>
@@ -147,24 +145,13 @@ export default function ProductosPage() {
       </div>
 
       {counts && (
-        <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}>
-          {[
-            { label: 'Total', value: counts.total, icon: Package, tone: 'accent' as const, sub: 'productos en catálogo' },
-            { label: 'Activos', value: counts.activos, icon: CheckCircle, tone: 'pos' as const, sub: 'disponibles' },
-            { label: 'Bajo stock', value: counts.stock_bajo, icon: AlertTriangle, tone: 'warn' as const, sub: 'por reabastecer' },
-            { label: 'Agotados', value: counts.agotados, icon: XCircle, tone: 'neg' as const, sub: 'sin existencias' },
-            { label: 'En oferta', value: counts.en_oferta, icon: Tag, tone: 'violet' as const, sub: 'con descuento' },
-          ].map((k, i) => {
-            const IconC = k.icon
-            return (
-              <div key={i} className="kpi">
-                <div className="kpi-row1"><div className="kpi-label">{k.label}</div><div className="kpi-icon" data-tone={k.tone}><IconC /></div></div>
-                <div className="kpi-value tnum">{fmtN(k.value)}</div>
-                <div className="kpi-meta"><span>{k.sub}</span></div>
-              </div>
-            )
-          })}
-        </div>
+        <KpiGrid items={[
+          { label: 'Total', value: counts.total, icon: Package, tone: 'accent', sub: 'productos en catálogo', onClick: () => { setEstado('todos'); setPage(1) }, activo: estado === 'todos' },
+          { label: 'Activos', value: counts.activos, icon: CheckCircle, tone: 'pos', sub: 'disponibles', onClick: () => { setEstado(estado === 'activo' ? 'todos' : 'activo'); setPage(1) }, activo: estado === 'activo' },
+          { label: 'Bajo stock', value: counts.stock_bajo, icon: AlertTriangle, tone: 'warn', sub: 'por reabastecer', onClick: () => { setStock(stock === 'bajo' ? 'todos' : 'bajo'); setPage(1) }, activo: stock === 'bajo' },
+          { label: 'Agotados', value: counts.agotados, icon: XCircle, tone: 'neg', sub: 'sin existencias', onClick: () => { setStock(stock === 'agotado' ? 'todos' : 'agotado'); setPage(1) }, activo: stock === 'agotado' },
+          { label: 'En oferta', value: counts.en_oferta, icon: Tag, tone: 'violet', sub: 'con descuento' },
+        ]} />
       )}
 
       <div className="toolbar">
@@ -179,8 +166,14 @@ export default function ProductosPage() {
           options={[{ value: 'todos', label: 'Todos los estados' }, { value: 'activo', label: 'Activos' }, { value: 'inactivo', label: 'Inactivos' }]} />
         <Select value={stock} onValueChange={(v) => { setStock(v); setPage(1) }} ariaLabel="Stock"
           options={[{ value: 'todos', label: 'Todo el stock' }, { value: 'disponible', label: 'Con stock' }, { value: 'bajo', label: 'Bajo stock' }, { value: 'agotado', label: 'Agotados' }]} />
-        <Select value={categoria} onValueChange={(v) => { setCategoria(v); setPage(1) }} ariaLabel="Categoría" options={opcionesCategoria} />
-        <Select value={proveedor} onValueChange={(v) => { setProveedor(v); setPage(1) }} ariaLabel="Proveedor" options={opcionesProveedor} />
+        <MultiSelect options={opcionesCategoria} selected={categoriasSel}
+          onChange={(ids) => { setCategoriasSel(ids); setPage(1) }}
+          placeholder="Todas las categorías" sustantivo="categorías"
+          compacto searchable searchPlaceholder="Buscar categoría…" mostrarNivel={false} />
+        <MultiSelect options={opcionesProveedor} selected={proveedoresSel}
+          onChange={(ids) => { setProveedoresSel(ids); setPage(1) }}
+          placeholder="Todos los proveedores" sustantivo="proveedores"
+          compacto searchable searchPlaceholder="Buscar proveedor…" mostrarNivel={false} />
         <Select value={sort} onValueChange={(v) => { setSort(v); setPage(1) }} ariaLabel="Ordenar por"
           options={[
             { value: 'nombre_asc', label: 'Nombre A-Z' },
@@ -191,7 +184,7 @@ export default function ProductosPage() {
             { value: 'stock_asc', label: 'Menor stock' },
           ]} />
         {filtrosActivos >= 2 && (
-          <button className="btn" onClick={() => { setSearch(''); setEstado('todos'); setStock('todos'); setCategoria('todos'); setProveedor('todos'); setSort('nombre_asc'); setPage(1); navigate('/productos') }} title="Limpiar filtros"><X size={15} /> Limpiar</button>
+          <button className="btn" onClick={() => { setSearch(''); setEstado('todos'); setStock('todos'); setCategoriasSel([]); setProveedoresSel([]); setSort('nombre_asc'); setPage(1); navigate('/productos') }} title="Limpiar filtros"><X size={15} /> Limpiar</button>
         )}
         <div className="view-toggle">
           <button data-on={vista === 'tabla'} onClick={() => setVista('tabla')} title="Vista de tabla"><List /></button>

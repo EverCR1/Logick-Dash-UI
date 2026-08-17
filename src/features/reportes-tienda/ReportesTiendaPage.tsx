@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { Loader2, Settings, X, List, LayoutGrid, User } from 'lucide-react'
 import { I } from '@/components/icons'
+import { KpiGrid } from '@/components/ui/KpiGrid'
 import { Select } from '@/components/ui/Select'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Pagination } from '@/components/ui/Pagination'
 import { GestionarReporte } from './GestionarReporte'
 import { reportesTiendaApi } from '@/lib/api'
 import { useAutoPageSize, vistaInicial } from '@/lib/hooks'
-import { fmtN, fmtFecha } from '@/lib/format'
+import { fmtFecha } from '@/lib/format'
 import { REPORTE_CATEGORIAS, type ReporteCategoria, type ReporteEstado, type ReporteFiltros, type ReporteProblema } from '@/types/reporte-problema'
 
 const PER_PAGE = 20
@@ -33,6 +34,12 @@ function categoriaLabel(r: ReporteProblema): string {
 
 export default function ReportesTiendaPage() {
   const [estado, setEstado] = useState('todos')
+
+  // Pulsar el KPI activo lo desmarca y vuelve a "todos".
+  const filtrarPor = (valor: string) => {
+    setEstado((actual) => (actual === valor ? 'todos' : valor))
+    setPage(1)
+  }
   const [categoria, setCategoria] = useState('todos')
   const [vista, setVista] = useState<Vista>(() => vistaInicial('problemas_vista'))
   const [page, setPage] = useState(1)
@@ -70,24 +77,18 @@ export default function ReportesTiendaPage() {
       <PageHeader title="Reportes de tienda" subtitle="Problemas reportados por clientes de la tienda" />
 
       {counts && (
-        <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}>
-          {[
-            { label: 'Total', value: counts.total, icon: I.Flag, tone: 'accent' as const, sub: 'reportes' },
-            { label: 'Pendientes', value: counts.pendiente, icon: I.Clock, tone: 'warn' as const, sub: 'sin revisar' },
-            { label: 'En revisión', value: counts.en_revision, icon: I.Search, tone: 'info' as const, sub: 'en proceso' },
-            { label: 'Resueltos', value: counts.resuelto, icon: I.CheckCircle, tone: 'pos' as const, sub: 'cerrados' },
-            { label: 'Inválidos', value: counts.invalido, icon: I.Ban, tone: 'neg' as const, sub: 'descartados' },
-          ].map((k, i) => {
-            const IconC = k.icon
-            return (
-              <div key={i} className="kpi">
-                <div className="kpi-row1"><div className="kpi-label">{k.label}</div><div className="kpi-icon" data-tone={k.tone}><IconC /></div></div>
-                <div className="kpi-value tnum">{fmtN(k.value)}</div>
-                <div className="kpi-meta"><span>{k.sub}</span></div>
-              </div>
-            )
-          })}
-        </div>
+        <KpiGrid items={[
+          { label: 'Total', value: counts.total, icon: I.Flag, tone: 'accent', sub: 'reportes',
+            onClick: () => filtrarPor('todos'), activo: estado === 'todos' },
+          { label: 'Pendientes', value: counts.pendiente, icon: I.Clock, tone: 'warn', sub: 'sin revisar',
+            onClick: () => filtrarPor('pendiente'), activo: estado === 'pendiente' },
+          { label: 'En revisión', value: counts.en_revision, icon: I.Search, tone: 'info', sub: 'en proceso',
+            onClick: () => filtrarPor('en_revision'), activo: estado === 'en_revision' },
+          { label: 'Resueltos', value: counts.resuelto, icon: I.CheckCircle, tone: 'pos', sub: 'cerrados',
+            onClick: () => filtrarPor('resuelto'), activo: estado === 'resuelto' },
+          { label: 'Inválidos', value: counts.invalido, icon: I.Ban, tone: 'neg', sub: 'descartados',
+            onClick: () => filtrarPor('invalido'), activo: estado === 'invalido' },
+        ]} />
       )}
 
       <div className="toolbar">
