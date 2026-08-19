@@ -13,6 +13,7 @@ import { Lightbox } from '@/components/ui/Lightbox'
 import { CategoriaForm } from './CategoriaForm'
 import { categoriasApi } from '@/lib/api'
 import { useDebounce } from '@/lib/hooks'
+import { coincideBusqueda } from '@/lib/text'
 import type { Categoria, CategoriaArbol, CategoriaFiltros } from '@/types/categoria'
 
 const PER_PAGE = 20
@@ -32,7 +33,7 @@ function filtrarArbol(nodos: CategoriaArbol[], texto: string, estado: string): C
   const out: CategoriaArbol[] = []
   for (const n of nodos) {
     const hijos = filtrarArbol(n.children_recursive ?? [], texto, estado)
-    const okTexto = !texto || n.nombre.toLowerCase().includes(texto) || (n.descripcion ?? '').toLowerCase().includes(texto)
+    const okTexto = coincideBusqueda(texto, n.nombre, n.descripcion)
     const okEstado = estado === 'todos' || n.estado === estado
     if ((okTexto && okEstado) || hijos.length > 0) {
       out.push({ ...n, children_recursive: hijos })
@@ -93,7 +94,7 @@ export default function CategoriasPage() {
 
   // Filtro client-side para árbol/cards (la tabla filtra en el servidor)
   const arbolFiltrado = useMemo(
-    () => filtrarArbol(arbolQuery.data ?? [], searchDebounced.toLowerCase().trim(), estado),
+    () => filtrarArbol(arbolQuery.data ?? [], searchDebounced, estado),
     [arbolQuery.data, searchDebounced, estado],
   )
 

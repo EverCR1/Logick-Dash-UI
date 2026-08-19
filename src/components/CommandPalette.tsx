@@ -5,16 +5,13 @@ import { Search } from 'lucide-react'
 import { I, type IconName } from '@/components/icons'
 import { NAV, puedeVer } from '@/config/nav'
 import { useAuth } from '@/lib/auth'
+import { coincideBusqueda } from '@/lib/text'
 
 interface Entrada {
   to: string
   label: string
   icon: IconName
   grupo: string
-}
-
-function normaliza(s: string): string {
-  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 }
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
@@ -40,11 +37,10 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     [rol],
   )
 
-  const resultados = useMemo(() => {
-    const q = normaliza(query.trim())
-    if (!q) return entradas
-    return entradas.filter((e) => normaliza(e.label).includes(q) || normaliza(e.grupo).includes(q))
-  }, [query, entradas])
+  const resultados = useMemo(
+    () => entradas.filter((e) => coincideBusqueda(query, e.label, e.grupo)),
+    [query, entradas],
+  )
 
   useEffect(() => { setActivo(0) }, [query])
 

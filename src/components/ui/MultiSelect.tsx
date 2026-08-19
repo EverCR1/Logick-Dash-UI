@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { Check, ChevronDown, X, Search } from 'lucide-react'
+import { coincideBusqueda } from '@/lib/text'
 
 export interface MultiOption {
   value: number
@@ -32,8 +33,6 @@ interface MultiSelectProps {
   mostrarNivel?: boolean
 }
 
-const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-
 /**
  * Selector múltiple con checkboxes (Radix DropdownMenu) estilado con el sistema.
  * Se mantiene abierto al marcar opciones (onSelect preventDefault).
@@ -50,8 +49,7 @@ export function MultiSelect({
   }
 
   const chips = options.filter((o) => selected.includes(o.value))
-  const q = norm(query.trim())
-  const visibles = q ? options.filter((o) => norm(o.label).includes(q)) : options
+  const visibles = options.filter((o) => coincideBusqueda(query, o.label))
 
   // Con una sola opción marcada se muestra su nombre; con varias, el conteo.
   const resumen = chips.length === 0
