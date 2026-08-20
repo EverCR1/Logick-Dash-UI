@@ -31,6 +31,7 @@ const PreguntasPage = lazy(() => import('@/features/preguntas/PreguntasPage'))
 const ReportesTiendaPage = lazy(() => import('@/features/reportes-tienda/ReportesTiendaPage'))
 const AuditoriaPage = lazy(() => import('@/features/auditoria/AuditoriaPage'))
 const ReportesPage = lazy(() => import('@/features/reportes/ReportesPage'))
+const DetalleReporte = lazy(() => import('@/features/reportes/detalle/DetalleReporte'))
 const CreditosPage = lazy(() => import('@/features/creditos/CreditosPage'))
 const CreditoDetalle = lazy(() => import('@/features/creditos/CreditoDetalle'))
 const PedidosPage = lazy(() => import('@/features/pedidos/PedidosPage'))
@@ -92,6 +93,8 @@ export default function App() {
             <Route path="/servicios/:id" element={<Suspense fallback={<CargandoPagina />}><ServicioDetalle /></Suspense>} />
             <Route path="/creditos/:id" element={<Suspense fallback={<CargandoPagina />}><CreditoDetalle /></Suspense>} />
             <Route path="/ventas/nueva" element={<Suspense fallback={<CargandoPagina />}><NuevaVenta /></Suspense>} />
+            {/* Vistas de detalle de reportes; heredan los roles de /reportes por prefijo */}
+            <Route path="/reportes/detalle/:modulo" element={<Suspense fallback={<CargandoPagina />}><DetalleReporte /></Suspense>} />
             {items
               .filter((it) => it.to !== '/')
               .map((it) => {

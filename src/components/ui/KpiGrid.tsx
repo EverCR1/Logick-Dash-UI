@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { fmtN } from '@/lib/format'
 
 export type KpiTono = 'accent' | 'pos' | 'neg' | 'warn' | 'info' | 'violet'
@@ -17,6 +18,12 @@ export interface KpiItem {
    * renderizan como tarjeta estática.
    */
   onClick?: () => void
+  /**
+   * Navega a la vista que desarrolla esta cifra, normalmente un detalle ya
+   * filtrado. Excluyente con `onClick`: un KPI o filtra donde está, o lleva
+   * a otra pantalla, no ambas.
+   */
+  to?: string
   /** El filtro de este KPI está aplicado: lo resalta y permite quitarlo. */
   activo?: boolean
 }
@@ -55,6 +62,14 @@ export function KpiGrid({ items, cols }: KpiGridProps) {
             {k.sub && <div className="kpi-meta"><span>{k.sub}</span></div>}
           </>
         )
+
+        if (k.to) {
+          return (
+            <Link key={i} to={k.to} className="kpi kpi-accion kpi-link" title={`Ver el detalle de ${k.label.toLowerCase()}`}>
+              {contenido}
+            </Link>
+          )
+        }
 
         if (!k.onClick) {
           return <div key={i} className="kpi">{contenido}</div>

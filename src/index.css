@@ -957,6 +957,26 @@ button.topbar-search:hover { border-color: var(--border-strong); background: var
 .chart-stat .label { font-size: 11.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
 .chart-stat .value { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-top: 2px; }
 .chart-stat .delta { font-size: 12px; color: var(--pos); margin-top: 2px; font-weight: 500; }
+/* Tarjeta del resumen que lleva a la vista donde se desarrolla su cifra.
+   Se marca solo al pasar el cursor: en reposo debe leerse como un dato, no
+   como un botón, o la pantalla se vuelve un tablero de enlaces. */
+.es-enlace {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color .14s ease, transform .14s ease, box-shadow .14s ease;
+}
+.es-enlace:hover { border-color: var(--accent); }
+.es-enlace:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chart-stat.es-enlace:hover .value { color: var(--accent-text); }
+.insight.es-enlace { display: flex; }
+/* La barra de progreso enlaza entera; el realce va en su cifra */
+.progress-block.es-enlace:hover .pv { color: var(--accent-text); }
+/* La gráfica no cambia de aspecto al pasar el cursor: solo el puntero avisa */
+.grafica-enlace { display: block; cursor: pointer; }
+.insight.es-enlace:hover { transform: translateY(-2px); box-shadow: 0 6px 22px var(--accent-soft); }
+
 .chart-legend {
   display: flex;
   gap: 14px;
@@ -1936,6 +1956,195 @@ input.rango-date { width: 138px; }
 .page-title { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
 .page-sub { color: var(--text-muted); font-size: 13.5px; margin-top: 2px; }
 
+/* Botón que se lee como enlace: abre un modal en vez de navegar */
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 500;
+  color: var(--accent-text);
+  cursor: pointer;
+}
+.link-btn:hover { text-decoration: underline; }
+.link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+/* Encabezado de las vistas de detalle: flecha de volver junto al título */
+.det-titulo { display: flex; align-items: center; gap: 12px; min-width: 0; }
+/* Refresco en segundo plano: los datos previos siguen en pantalla, atenuados */
+.det-tabla[data-cargando] { opacity: 0.6; transition: opacity .15s ease; }
+
+/* Chip del item por el que se llegó desde el resumen */
+.det-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: -4px; }
+
+/* ── Tablas de detalle en pantallas estrechas ─────────────────────────────────
+   Estas tablas tienen entre 8 y 11 columnas de datos financieros. Comprimirlas
+   las vuelve ilegibles y ocultar columnas sería esconder justo lo que se vino a
+   consultar, así que se desplazan en horizontal conservando todo.
+
+   El scroll vive en .det-tabla y no en la card: la paginación es hermana de la
+   tabla dentro de la misma card y se desplazaría con ella. */
+.det-tabla {
+  --tabla-min: 940px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.det-tabla > .tbl { min-width: var(--tabla-min); }
+
+/* Sombra en el borde derecho mientras quede tabla por ver. El degradado va
+   fijo al viewport del scroller (background-attachment: local/scroll), no a una
+   posición concreta, así desaparece solo al llegar al final. */
+.det-tabla {
+  background:
+    linear-gradient(to right, var(--card-bg) 30%, transparent) left center / 24px 100% no-repeat local,
+    linear-gradient(to left,  var(--card-bg) 30%, transparent) right center / 24px 100% no-repeat local,
+    linear-gradient(to right, rgba(0,0,0,.13), transparent) left center / 14px 100% no-repeat scroll,
+    linear-gradient(to left,  rgba(0,0,0,.13), transparent) right center / 14px 100% no-repeat scroll;
+}
+
+/* Columna de identidad: se queda fija al desplazar para no perder de vista de
+   qué fila se está leyendo. Necesita fondo propio o el resto pasa por debajo. */
+.det-tabla .col-id {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--card-bg);
+}
+.det-tabla thead .col-id { z-index: 3; }
+.det-tabla tr:hover .col-id { background: var(--hover); }
+.det-tabla tr[data-abierta] .col-id,
+.det-tabla tr[data-huerfana] .col-id { background: var(--bg-elev-1); }
+/* Separador solo cuando hay algo desplazado por debajo */
+.det-tabla .col-id::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+
+/* La columna "No." es un contador de fila, no un dato: es lo primero que sobra */
+@media (max-width: 1180px) {
+  .det-tabla .col-no { display: none; }
+}
+
+/* La tabla anidada del desglose cabe dentro del ancho mínimo de la exterior,
+   así que hereda su scroll y no necesita uno propio. */
+
+/* ── Barra de filtros y encabezado en pantallas estrechas ──────────────────── */
+
+/* Laptop pequeña y tablet: los controles dejan de competir por la fila y pasan
+   a una rejilla. Con flex-wrap quedaban huecos irregulares y un control suelto
+   en la última línea; en rejilla todos miden lo mismo y se leen como un grupo. */
+@media (max-width: 1080px) {
+  .toolbar,
+  .filtros-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    align-items: center;
+  }
+  /* El buscador siempre ocupa la fila entera: es el control que más se usa */
+  .toolbar > .toolbar-search { grid-column: 1 / -1; }
+  /* Los controles con ancho propio se estiran a su celda */
+  .toolbar > .ui-select-trigger,
+  .toolbar > .btn,
+  .filtros-panel > .ui-select-trigger,
+  .filtros-panel > .btn { width: 100%; }
+  .filtros-panel .multi-trigger[data-compacto] { width: 100%; min-width: 0; }
+  /* Los rangos llevan etiqueta y dos campos: en una celda de 190px no caben */
+  .toolbar > .rango-fechas,
+  .toolbar > .rango-numerico,
+  .filtros-panel > .rango-fechas,
+  .filtros-panel > .rango-numerico { grid-column: span 2; }
+  /* Exportar y "Ver detalle" se mantienen juntos al final */
+  .toolbar > div[style*="margin-left"] { grid-column: 1 / -1; justify-content: flex-end; }
+}
+
+/* Móvil: un control por fila. Dos columnas de 190px no caben y partirse a la
+   mitad hace ilegibles las etiquetas de los selects. */
+@media (max-width: 560px) {
+  .toolbar,
+  .filtros-panel { grid-template-columns: 1fr; }
+  /* El span de 2 crearía una columna implícita en una rejilla de una sola */
+  .toolbar > .rango-fechas,
+  .toolbar > .rango-numerico,
+  .filtros-panel > .rango-fechas,
+  .filtros-panel > .rango-numerico { grid-column: auto; }
+  .rango-fechas,
+  .rango-numerico { width: 100%; }
+  .rango-fechas .rango-atajos { flex: 1; }
+  .rango-campo { flex: 1; }
+  input.rango-date,
+  .rango-campo input { width: 100%; min-width: 0; }
+}
+
+/* Encabezado del detalle: el título y las acciones dejan de compartir fila */
+@media (max-width: 640px) {
+  .page-head { align-items: flex-start; gap: 12px; }
+  .det-titulo { width: 100%; }
+}
+
+/* El ancho mínimo no se reduce en móvil a propósito: bajarlo comprimiría las
+   columnas, que es justo lo que se quiere evitar. Se desplaza más, pero se lee.
+   Tampoco podría hacerse aquí — las vistas que lo ajustan lo pasan como estilo
+   en línea y ese gana sobre cualquier media query. */
+
+/* Fila desplegada y su desglose por línea */
+.tbl tr[data-abierta] > td { background: var(--bg-elev-1); }
+.fila-lineas > td { padding: 0 !important; background: var(--bg-elev-1); }
+.lineas-caja {
+  padding: 10px 14px 14px;
+  border-left: 3px solid var(--accent);
+}
+.lineas-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.lineas-head .muted { font-weight: 400; }
+/* Fila de lo no atribuible a ninguna sucursal: se distingue sin gritar */
+.tbl tr[data-huerfana] > td { background: var(--bg-elev-1); }
+.tbl tr[data-huerfana] .tnum { color: var(--text-muted); }
+.aviso-huerfana {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: var(--info-soft);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.aviso-huerfana svg { color: var(--info); flex-shrink: 0; margin-top: 1px; }
+.aviso-huerfana strong { color: var(--text); }
+
+/* Desglose de una sucursal: vendedores y productos lado a lado */
+.desglose-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+.desglose-titulo {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+/* Tabla dentro de otra: sin sombra ni bordes exteriores, solo la rejilla */
+.tbl-anidada { background: var(--card-bg); border-radius: 8px; overflow: hidden; }
+.tbl-anidada th, .tbl-anidada td { font-size: 12px; padding: 7px 10px; }
+.tbl-anidada tr:last-child td { border-bottom: 0; }
+
 .stat-pills { display: flex; gap: 10px; flex-wrap: wrap; }
 .stat-pill {
   flex: 1;
@@ -2026,6 +2235,18 @@ input.rango-date { width: 138px; }
   border-color: transparent; font-weight: 600;
 }
 .pagination-gap { color: var(--text-faint); padding: 0 2px; user-select: none; }
+
+/* En pantallas angostas el conteo y los números no caben en la misma fila:
+   se apilan y los números se centran, en vez de comprimirse o desbordarse. */
+@media (max-width: 560px) {
+  .pagination {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .pagination > span { text-align: center; }
+  .pagination .pages { justify-content: center; flex-wrap: wrap; }
+}
 
 /* Toggle de vista (tabla / cards) — reusa el look segmentado del theme-toggle */
 .view-toggle {
@@ -2684,8 +2905,10 @@ input.rango-date { width: 138px; }
   .topbar { padding: 0 14px; gap: 8px; }
   .content { padding: 14px; gap: 16px; }
 
-  /* Tablas: permiten scroll horizontal dentro de su card */
-  .card:has(table) { overflow-x: auto; }
+  /* Tablas de los índices: scroll dentro de su card. Se excluyen las cards de
+     las vistas de detalle, donde el scroll ya lo hace .det-tabla; anidarlos
+     arrastraría la paginación al desplazar la tabla. */
+  .card:has(table):not(:has(.det-tabla)) { overflow-x: auto; }
   .tbl { min-width: 560px; }
 
   /* Modales ocupan casi toda la pantalla */
@@ -2812,6 +3035,24 @@ input.rango-date { width: 138px; }
   background: var(--bg-elev-1); border: 1px solid var(--border); border-radius: 10px;
   box-shadow: 0 10px 30px rgba(0,0,0,.18); padding: 6px;
 }
+/* Nota bajo un campo de formulario: explica, no advierte */
+.form-hint { font-size: 11.5px; color: var(--text-faint); line-height: 1.4; margin-top: 4px; }
+
+/* Venta ligada a un crédito, ya seleccionada */
+.venta-elegida {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 8px;
+  font-size: 13px;
+}
+/* El dropdown apila número y datos de la venta en dos líneas */
+.venta-dropdown-item { flex-direction: column; align-items: flex-start; gap: 1px; }
+
 .venta-resultado {
   display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
   padding: 8px 10px; border-radius: 8px; border: 1px solid transparent; background: transparent;

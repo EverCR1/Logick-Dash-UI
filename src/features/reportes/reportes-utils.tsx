@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { Loader2, ArrowUp, ArrowDown, Minus } from 'lucide-react'
 import { I } from '@/components/icons'
 import type { AreaPoint } from '@/components/charts'
@@ -114,36 +115,26 @@ export function LeyendaTendencia() {
 export type Tono = 'accent' | 'pos' | 'neg' | 'warn' | 'info' | 'violet'
 export interface KpiItem { label: string; value: string | number; icon: React.ComponentType; tone?: Tono; sub?: string; currency?: string }
 
-export function KpiStrip({ items, cols }: { items: KpiItem[]; cols?: number }) {
-  return (
-    <div className="kpi-grid" style={cols ? { gridTemplateColumns: `repeat(${cols}, 1fr)` } : undefined}>
-      {items.map((k, i) => {
-        const IconC = k.icon
-        return (
-          <div key={i} className="kpi">
-            <div className="kpi-row1"><div className="kpi-label">{k.label}</div><div className="kpi-icon" data-tone={k.tone ?? 'accent'}><IconC /></div></div>
-            <div className="kpi-value tnum">{k.currency && <span className="currency">{k.currency}</span>}{typeof k.value === 'number' ? fmtN(k.value) : k.value}</div>
-            {k.sub && <div className="kpi-meta"><span>{k.sub}</span></div>}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
 // ── Callout de insight (dato destacado con icono) ───────────────────────────
-export function Insight({ icon: Icono, tone = 'accent', title, sub }: {
-  icon: React.ComponentType<{ size?: number }>; tone?: Tono; title: React.ReactNode; sub?: React.ReactNode
+export function Insight({ icon: Icono, tone = 'accent', title, sub, to }: {
+  icon: React.ComponentType<{ size?: number }>; tone?: Tono
+  title: React.ReactNode; sub?: React.ReactNode
+  /** Vista que desarrolla el dato; sin él la tarjeta es informativa. */
+  to?: string
 }) {
-  return (
-    <div className="insight">
+  const cuerpo = (
+    <>
       <span className="insight-icon" data-tone={tone}><Icono /></span>
       <div className="insight-main">
         <div className="insight-title">{title}</div>
         {sub && <div className="insight-sub">{sub}</div>}
       </div>
-    </div>
+    </>
   )
+
+  return to
+    ? <Link to={to} className="insight es-enlace">{cuerpo}</Link>
+    : <div className="insight">{cuerpo}</div>
 }
 
 // ── Barra horizontal comparativa ────────────────────────────────────────────
@@ -184,7 +175,8 @@ export function RankList({ items }: { items: RankItem[] }) {
   )
 }
 
-export interface HeroStat { label: string; value: string; delta?: string; tone?: 'pos' | 'neg' }
+/** `to` convierte la cifra en un enlace a la vista que la desarrolla. */
+export interface HeroStat { label: string; value: string; delta?: string; tone?: 'pos' | 'neg'; to?: string }
 
 // ── Cabecera analítica: cifras grandes del periodo ──────────────────────────
 export function HeroStats({ stats, style, children }: {
@@ -192,13 +184,19 @@ export function HeroStats({ stats, style, children }: {
 }) {
   return (
     <div className="chart-summary" style={style}>
-      {stats.map((s, i) => (
-        <div key={i} className="chart-stat">
-          <div className="label">{s.label}</div>
-          <div className="value tnum" style={s.tone ? { color: `var(--${s.tone})` } : undefined}>{s.value}</div>
-          {s.delta && <div className="delta">{s.delta}</div>}
-        </div>
-      ))}
+      {stats.map((s, i) => {
+        const cuerpo = (
+          <>
+            <div className="label">{s.label}</div>
+            <div className="value tnum" style={s.tone ? { color: `var(--${s.tone})` } : undefined}>{s.value}</div>
+            {s.delta && <div className="delta">{s.delta}</div>}
+          </>
+        )
+
+        return s.to
+          ? <Link key={i} to={s.to} className="chart-stat es-enlace" title={`Ver el detalle de ${s.label.toLowerCase()}`}>{cuerpo}</Link>
+          : <div key={i} className="chart-stat">{cuerpo}</div>
+      })}
       {children}
     </div>
   )

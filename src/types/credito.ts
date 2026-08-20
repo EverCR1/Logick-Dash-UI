@@ -52,6 +52,12 @@ export interface CreditosResponse {
 }
 
 export interface CreditoPayload {
+  /**
+   * Venta que originó el crédito. Es lo que permite atribuirlo a su sucursal y a
+   * su cliente en los reportes. Opcional: siguen existiendo créditos legítimos
+   * sin venta, como deudas anteriores al sistema.
+   */
+  venta_id?: number | null
   nombre_cliente: string
   capital: number
   producto_o_servicio_dado: string | null

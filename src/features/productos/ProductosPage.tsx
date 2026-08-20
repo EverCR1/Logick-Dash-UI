@@ -10,12 +10,13 @@ import { MultiSelect } from '@/components/ui/MultiSelect'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Lightbox } from '@/components/ui/Lightbox'
 import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
+import { Pagination } from '@/components/ui/Pagination'
 import { ProductoForm } from './ProductoForm'
 import { AjustarStock } from './AjustarStock'
 import { productosApi, catalogosApi } from '@/lib/api'
 import { useAutoPageSize } from '@/lib/hooks'
-import { q, fmtN } from '@/lib/format'
-import type { Producto, ProductoFiltros, Paginado } from '@/types/producto'
+import { q } from '@/lib/format'
+import type { Producto, ProductoFiltros } from '@/types/producto'
 
 const PER_PAGE = 15
 type Vista = 'tabla' | 'cards'
@@ -380,19 +381,3 @@ function ProductoCard({ producto, onZoom, onVer, onEditar, onReestock, onToggleE
   )
 }
 
-// ── Paginación ──────────────────────────────────────────────────────────────
-
-function Pagination({ meta, page, setPage }: {
-  meta: Paginado<Producto>; page: number; setPage: (fn: (p: number) => number) => void
-}) {
-  return (
-    <div className="pagination">
-      <span>{meta.from}–{meta.to} de {fmtN(meta.total)}</span>
-      <div className="pages">
-        <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}><I.Chevron style={{ transform: 'rotate(180deg)' }} /></button>
-        <span style={{ padding: '0 6px' }}>Página {meta.current_page} de {meta.last_page}</span>
-        <button disabled={page >= meta.last_page} onClick={() => setPage((p) => p + 1)}><I.Chevron /></button>
-      </div>
-    </div>
-  )
-}

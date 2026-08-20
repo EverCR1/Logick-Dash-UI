@@ -28,7 +28,13 @@ interface CartItem {
   servicio_id?: number
   stock?: number
   custom?: boolean   // línea manual: descripción/tipo/costo editables
-  costo?: number     // costo unitario (solo líneas manuales)
+  costo?: number     // costo unitario (solo líneas manuales); undefined = sin registrar
+}
+
+/** Campo vacío = sin costo registrado (undefined), distinto de un 0 escrito a propósito. */
+function costoDeInput(valor: string): number | undefined {
+  if (valor.trim() === '') return undefined
+  return Math.max(0, Number(valor) || 0)
 }
 
 type Vista = 'terminal' | 'formulario'
@@ -153,7 +159,9 @@ export default function NuevaVenta() {
     })
   }
 
-  const agregarCustom = () => setCart((prev) => [...prev, { key: nuevaKey(), tipo: 'producto', custom: true, descripcion: '', precio_unitario: 0, costo: 0, cantidad: 1, descuento: 0 }])
+  // El costo nace vacío, no en 0: un 0 se guardaría como "costo real de 0" y la
+  // línea aparecería en reportes con 100% de margen sin ningún aviso.
+  const agregarCustom = () => setCart((prev) => [...prev, { key: nuevaKey(), tipo: 'producto', custom: true, descripcion: '', precio_unitario: 0, cantidad: 1, descuento: 0 }])
   const actualizar = (key: string, patch: Partial<CartItem>) => setCart((prev) => prev.map((c) => c.key === key ? { ...c, ...patch } : c))
   const quitar = (key: string) => setCart((prev) => prev.filter((c) => c.key !== key))
   const cambiarCantidad = (c: CartItem, delta: number) => {
@@ -182,9 +190,9 @@ export default function NuevaVenta() {
         <button type="button" data-tipo="producto" data-active={c.tipo === 'producto'} onClick={() => actualizar(c.key, { tipo: 'producto' })}>Producto</button>
         <button type="button" data-tipo="servicio" data-active={c.tipo === 'servicio'} onClick={() => actualizar(c.key, { tipo: 'servicio' })}>Servicio</button>
       </div>
-      <label className="custom-costo">Costo Q
-        <input type="number" min="0" step="0.01" value={c.costo ?? 0}
-          onChange={(e) => actualizar(c.key, { costo: Math.max(0, Number(e.target.value) || 0) })} />
+      <label className="custom-costo" title="Lo que te costó cada unidad, no el total de la línea">Costo c/u Q
+        <input type="number" min="0" step="0.01" placeholder="—" value={c.costo ?? ''}
+          onChange={(e) => actualizar(c.key, { costo: costoDeInput(e.target.value) })} />
       </label>
     </div>
   )
@@ -201,8 +209,9 @@ export default function NuevaVenta() {
       const items: VentaItemPayload[] = cart.map((c) => ({
         tipo: c.tipo, cantidad: c.cantidad, descripcion: c.descripcion.trim(),
         precio_unitario: c.precio_unitario, descuento: c.descuento || 0,
-        // El costo solo aplica a líneas manuales; en las del catálogo se deriva en el reporte
-        costo: c.custom ? (c.costo ?? 0) : null,
+        // El costo solo aplica a líneas manuales; en las del catálogo se deriva en el
+        // reporte. Vacío viaja como null = "sin costo registrado", que el reporte marca.
+        costo: c.custom ? (c.costo ?? null) : null,
         producto_id: c.producto_id ?? null, servicio_id: c.servicio_id ?? null,
       }))
       return ventasApi.crear({
@@ -469,9 +478,9 @@ export default function NuevaVenta() {
                           {controls}
 
                           {c.custom && (
-                            <label className="tk-costo">Costo <span className="tk-price-pre">Q</span>
-                              <input className="li-input small" type="number" min="0" step="0.01" value={c.costo ?? 0}
-                                onChange={(e) => actualizar(c.key, { costo: Math.max(0, Number(e.target.value) || 0) })} />
+                            <label className="tk-costo" title="Lo que te costó cada unidad, no el total de la línea">Costo c/u <span className="tk-price-pre">Q</span>
+                              <input className="li-input small" type="number" min="0" step="0.01" placeholder="—" value={c.costo ?? ''}
+                                onChange={(e) => actualizar(c.key, { costo: costoDeInput(e.target.value) })} />
                             </label>
                           )}
 

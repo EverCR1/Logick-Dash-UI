@@ -1,25 +1,67 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import {
   ShoppingCart, Coins, TrendingUp, Users, UserCheck, UserPlus, ShoppingBag,
   Package, AlertTriangle, Wallet, Boxes, Building2, Trophy, Receipt,
   Store, ClipboardList, CircleDollarSign, Layers, Ban, CreditCard, Clock, ShieldCheck,
+  ListTree,
 } from 'lucide-react'
 import { AreaChart, Sparkline } from '@/components/charts'
 import { Select } from '@/components/ui/Select'
+import { rangoDePeriodo, type Periodo } from '@/components/ui/RangoFechas'
 import { Pagination } from '@/components/ui/Pagination'
+import { KpiGrid } from '@/components/ui/KpiGrid'
 import { reportesApi, catalogosApi } from '@/lib/api'
 import { usePaginacionLocal } from '@/lib/hooks'
 import { q, fmtN, pct, fmtFecha, fechaLocal } from '@/lib/format'
 import { ESTADO_VENTA, METODO_LABEL, METODO_TONE } from '../ventas/venta-estados'
 import {
-  EstadoCarga, KpiStrip, Insight, BarRow, RankList, HeroStats, BadgeVariacion, LeyendaTendencia,
+  EstadoCarga, Insight, BarRow, RankList, HeroStats, BadgeVariacion, LeyendaTendencia,
   construirTendencia, variacion, rangoPrevio, desplazarDias, type RankItem, type Tono,
 } from './reportes-utils'
 import { BotonesExportar } from './BotonesExportar'
 import type { ReporteExportData } from './ReportePDF'
 
 interface RangoProps { desde: string; hasta: string }
+
+/**
+ * Salida del resumen hacia la vista de detalle del módulo, arrastrando el rango
+ * de fechas activo para no obligar a volver a elegirlo.
+ */
+function BotonDetalle({ modulo, desde, hasta }: { modulo: string; desde?: string; hasta?: string }) {
+  // Sin rango (inventario), el detalle aplica el suyo por defecto
+  const query = desde && hasta ? `?desde=${desde}&hasta=${hasta}` : ''
+
+  return (
+    <Link className="btn" to={`/reportes/detalle/${modulo}${query}`}>
+      <ListTree size={14} /> Ver detalle
+    </Link>
+  )
+}
+
+/**
+ * Enlaces del resumen hacia el detalle que desarrolla cada cifra.
+ *
+ * Cada tarjeta lleva su propio rango: "Hoy" abre el día, "Mes actual" el mes.
+ * Sin eso el detalle se abriría con el rango por defecto y mostraría otra cifra
+ * distinta a la que se pulsó, que es peor que no enlazar.
+ */
+function detalle(modulo: string, extra: Record<string, string> = {}, periodo?: Exclude<Periodo, 'personalizado'>) {
+  const rango = periodo ? rangoDePeriodo(periodo) : null
+  const params = new URLSearchParams({
+    ...(rango ? { desde: rango.desde, hasta: rango.hasta } : {}),
+    ...extra,
+  })
+  const query = params.toString()
+  return `/reportes/detalle/${modulo}${query ? `?${query}` : ''}`
+}
+
+/** Detalle de ganancias acotado a un producto o servicio concreto. */
+function enlaceItem(it: { producto_id: number | null; servicio_id: number | null }, desde: string, hasta: string) {
+  const clave = it.producto_id ? `producto_id=${it.producto_id}` : `servicio_id=${it.servicio_id}`
+  return `/reportes/detalle/ganancias?desde=${desde}&hasta=${hasta}&${clave}`
+}
 const base = ({ desde, hasta }: RangoProps) => ({ fecha_inicio: desde, fecha_fin: hasta })
 const limpio = (v: string) => (v && v !== 'todos' ? v : undefined)
 const rangoTxt = (desde: string, hasta: string) => `Del ${fmtFecha(desde)} al ${fmtFecha(hasta)}`
@@ -148,67 +190,106 @@ export function TabResumen() {
 
           <Hero titulo="Ventas — últimos 14 días" badge={<BadgeVariacion valor={delta} />}>
             <div className="chart-wrap">
+              {/* Cada cifra abre el detalle con su propio rango: si "Hoy" abriera
+                  el rango por defecto, mostraría un número distinto al pulsado.
+                  Y van a ganancias, no a ventas: estas cifras son ingreso
+                  reconocido (contado + abonos), el mismo criterio que ganancias.
+                  El detalle de ventas suma lo facturado y daría otro número. */}
               <HeroStats stats={[
-                { label: 'Histórico', value: q(d.ventas.total), delta: ventas14 ? `${fmtN(ventas14.total_ventas)} ventas en los últimos 14 días` : undefined },
-                { label: 'Promedio / venta', value: q(d.ventas.promedio_diario) },
-                { label: 'Mes actual', value: q(d.ventas.mes) },
-                { label: 'Hoy', value: q(d.ventas.hoy), tone: d.ventas.hoy > 0 ? 'pos' : undefined },
+                {
+                  label: 'Histórico', value: q(d.ventas.total),
+                  delta: ventas14 ? `${fmtN(ventas14.total_ventas)} ventas en los últimos 14 días` : undefined,
+                  to: detalle('ganancias', { desde: '2000-01-01', hasta: hastaTend }),
+                },
+                // Promedio histórico por venta: el recorte que lo explica son las
+                // ventas de mayor a menor monto
+                { label: 'Promedio / venta', value: q(d.ventas.promedio_diario), to: detalle('ventas', { desde: '2000-01-01', hasta: hastaTend, sort: 'total_desc' }) },
+                { label: 'Mes actual', value: q(d.ventas.mes), to: detalle('ganancias', {}, 'mes') },
+                {
+                  label: 'Hoy', value: q(d.ventas.hoy), tone: d.ventas.hoy > 0 ? 'pos' : undefined,
+                  to: detalle('ganancias', {}, 'hoy'),
+                },
               ]}>
                 <LeyendaTendencia />
               </HeroStats>
-              {tendencia.puntos.length > 1 && <AreaChart data={tendencia.puntos} height={200} />}
+              {/* La curva es el elemento más grande del resumen; sin enlace era
+                  el único dato de la pantalla del que no se podía salir. */}
+              {tendencia.puntos.length > 1 && (
+                <Link className="grafica-enlace" to={detalle('ganancias', { desde: desdeTend, hasta: hastaTend })}
+                  title="Ver el detalle de estos 14 días">
+                  <AreaChart data={tendencia.puntos} height={200} />
+                </Link>
+              )}
             </div>
           </Hero>
 
           <div className="insight-row">
             <Insight icon={ShoppingCart} tone={d.ventas.hoy > 0 ? 'pos' : 'info'}
-              title={`${q(d.ventas.hoy)} vendido hoy`} sub={`${q(d.ventas.semana)} acumulado en la semana`} />
+              title={`${q(d.ventas.hoy)} vendido hoy`} sub={`${q(d.ventas.semana)} acumulado en la semana`}
+              to={detalle('ganancias', {}, 'hoy')} />
             <Insight icon={AlertTriangle} tone={d.productos.stock_bajo > 0 ? 'warn' : 'pos'}
               title={d.productos.stock_bajo > 0 ? `${fmtN(d.productos.stock_bajo)} productos con stock bajo` : 'Inventario sin alertas'}
-              sub={d.productos.agotados > 0 ? `${fmtN(d.productos.agotados)} agotados requieren reabastecimiento` : 'Ningún producto agotado'} />
+              sub={d.productos.agotados > 0 ? `${fmtN(d.productos.agotados)} agotados requieren reabastecimiento` : 'Ningún producto agotado'}
+              to={detalle('inventario', d.productos.stock_bajo > 0 ? { estado_stock: 'riesgo' } : {})} />
             <Insight icon={Users} tone="info" title={`${tasaClientes}% de clientes activos`}
-              sub={`${fmtN(d.clientes.activos)} de ${fmtN(d.clientes.total)} registrados`} />
+              sub={`${fmtN(d.clientes.activos)} de ${fmtN(d.clientes.total)} registrados`}
+              to={detalle('clientes', { estado: 'activo' }, 'mes')} />
           </div>
 
           <div className="row-12">
             <div className="card">
               <div className="card-header"><div className="card-title"><Users size={15} style={{ color: 'var(--accent-text)' }} />Clientes</div></div>
               <div className="card-pad" style={{ paddingBottom: 4 }}>
-                <KpiStrip cols={2} items={[
-                  { label: 'Total', value: d.clientes.total, icon: Users, tone: 'accent' },
-                  { label: 'Activos', value: d.clientes.activos, icon: UserCheck, tone: 'pos' },
-                  { label: 'Nuevos (mes)', value: d.clientes.nuevos_mes, icon: UserPlus, tone: 'info' },
-                  { label: 'Con ventas', value: d.clientes.con_ventas, icon: ShoppingBag, tone: 'violet' },
+                <KpiGrid cols={2} items={[
+                  { label: 'Total', value: d.clientes.total, icon: Users, tone: 'accent', to: detalle('clientes', {}, 'mes') },
+                  { label: 'Activos', value: d.clientes.activos, icon: UserCheck, tone: 'pos', to: detalle('clientes', { estado: 'activo' }, 'mes') },
+                  { label: 'Nuevos (mes)', value: d.clientes.nuevos_mes, icon: UserPlus, tone: 'info', to: detalle('clientes', { nuevos: '1' }, 'mes') },
+                  // "Con ventas" del resumen es histórico, no del mes: el enlace
+                  // abre todo el rango o mostraría muchos menos clientes
+                  { label: 'Con ventas', value: d.clientes.con_ventas, icon: ShoppingBag, tone: 'violet', to: detalle('clientes', { con_compras: '1', desde: '2000-01-01', hasta: hastaTend }) },
                 ]} />
               </div>
-              <div className="progress-block">
+              {/* La tasa la componen los activos: es a ellos a donde lleva */}
+              <Link className="progress-block es-enlace" to={detalle('clientes', { estado: 'activo' }, 'mes')}>
                 <div className="progress-head"><span className="pl">Tasa de actividad</span><span className="pv tnum">{tasaClientes}%</span></div>
                 <div className="progress"><span style={{ width: `${tasaClientes}%` }} /></div>
-              </div>
+              </Link>
             </div>
 
             <div className="card">
               <div className="card-header"><div className="card-title"><Boxes size={15} style={{ color: 'var(--accent-text)' }} />Inventario</div></div>
               <div className="card-pad" style={{ paddingBottom: 4 }}>
-                <KpiStrip cols={2} items={[
-                  { label: 'Productos', value: d.productos.total, icon: Package, tone: 'accent' },
-                  { label: 'Stock bajo', value: d.productos.stock_bajo, icon: AlertTriangle, tone: 'warn' },
-                  { label: 'Valor', value: q(d.productos.valor_inventario), icon: Wallet, tone: 'pos' },
-                  { label: 'Agotados', value: d.productos.agotados, icon: Ban, tone: 'neg' },
+                {/* El inventario no depende del rango: el detalle lo usa solo para
+                    medir rotación, así que estos enlaces van sin fechas. */}
+                <KpiGrid cols={2} items={[
+                  { label: 'Productos', value: d.productos.total, icon: Package, tone: 'accent', to: detalle('inventario') },
+                  // El KPI cuenta stock <= mínimo, agotados incluidos: ese es el
+                  // estado "riesgo", no "bajo", que los excluye
+                  { label: 'Stock bajo', value: d.productos.stock_bajo, icon: AlertTriangle, tone: 'warn', to: detalle('inventario', { estado_stock: 'riesgo' }) },
+                  { label: 'Valor', value: q(d.productos.valor_inventario), icon: Wallet, tone: 'pos', to: detalle('inventario', { sort: 'valor_desc' }) },
+                  { label: 'Agotados', value: d.productos.agotados, icon: Ban, tone: 'neg', to: detalle('inventario', { estado_stock: 'agotado' }) },
                 ]} />
               </div>
-              <div className="progress-block">
+              {/* Lo que baja la disponibilidad son los agotados: ese es el recorte
+                  accionable, no el complementario de productos disponibles */}
+              <Link className="progress-block es-enlace" to={detalle('inventario', { estado_stock: 'agotado' })}>
                 <div className="progress-head"><span className="pl">Disponibilidad</span><span className="pv tnum">{disponibilidad}%</span></div>
                 <div className="progress"><span style={{ width: `${disponibilidad}%` }} /></div>
-              </div>
+              </Link>
             </div>
           </div>
 
           <Bloque titulo="Usuarios del sistema" icon={ShieldCheck} iconColor="var(--accent-text)">
             <div className="card-pad">
-              <KpiStrip cols={2} items={[
-                { label: 'Total', value: d.usuarios.total, icon: Users, tone: 'accent' },
-                { label: 'Activos', value: d.usuarios.activos, icon: UserCheck, tone: 'pos' },
+              <KpiGrid cols={2} items={[
+                {
+                  label: 'Total', value: d.usuarios.total, icon: Users, tone: 'accent',
+                  to: detalle('vendedores', { incluir_sin_ventas: '1' }, 'mes'),
+                },
+                {
+                  label: 'Activos', value: d.usuarios.activos, icon: UserCheck, tone: 'pos',
+                  to: detalle('vendedores', { estado: 'activo', incluir_sin_ventas: '1' }, 'mes'),
+                },
               ]} />
             </div>
           </Bloque>
@@ -265,7 +346,10 @@ export function TabVentas({ desde, hasta }: RangoProps) {
           options={[{ value: 'todos', label: 'Todos los métodos' }, { value: 'efectivo', label: 'Efectivo' }, { value: 'tarjeta', label: 'Tarjeta' }, { value: 'transferencia', label: 'Transferencia' }, { value: 'mixto', label: 'Mixto' }, { value: 'credito', label: 'Crédito' }]} />
         <Select value={estado} onValueChange={setEstado} ariaLabel="Estado"
           options={[{ value: 'todos', label: 'Todos los estados' }, { value: 'completada', label: 'Completadas' }, { value: 'pendiente', label: 'Pendientes' }, { value: 'cancelada', label: 'Canceladas' }]} />
-        <div style={{ marginLeft: 'auto' }}><BotonesExportar data={exportData} /></div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <BotonDetalle modulo="ventas" desde={desde} hasta={hasta} />
+          <BotonesExportar data={exportData} />
+        </div>
       </div>
       <EstadoCarga isLoading={isLoading} isError={isError} vacio={!r || r.total_ventas === 0} refetch={refetch}>
         {r && (
@@ -350,7 +434,7 @@ export function TabProductos({ desde, hasta }: RangoProps) {
 
   return (
     <div style={{ display: 'grid', gap: 18 }}>
-      <div className="toolbar"><SelectLimite value={limite} onChange={setLimite} /><div style={{ marginLeft: 'auto' }}><BotonesExportar data={exportData} /></div></div>
+      <div className="toolbar"><SelectLimite value={limite} onChange={setLimite} /><div style={{ marginLeft: "auto", display: "flex", gap: 8 }}><BotonDetalle modulo="productos" desde={desde} hasta={hasta} /><BotonesExportar data={exportData} /></div></div>
       <EstadoCarga isLoading={isLoading} isError={isError} vacio={productos.length === 0} refetch={refetch} icono={Package}>
         <div className="insight-row">
           <Insight icon={Package} tone="info" title={`${fmtN(productos.length)} productos vendidos`} sub={`${fmtN(totalUnidades)} unidades en el periodo`} />
@@ -417,7 +501,7 @@ export function TabServicios({ desde, hasta }: RangoProps) {
 
   return (
     <div style={{ display: 'grid', gap: 18 }}>
-      <div className="toolbar"><SelectLimite value={limite} onChange={setLimite} /><div style={{ marginLeft: 'auto' }}><BotonesExportar data={exportData} /></div></div>
+      <div className="toolbar"><SelectLimite value={limite} onChange={setLimite} /><div style={{ marginLeft: "auto", display: "flex", gap: 8 }}><BotonDetalle modulo="servicios" desde={desde} hasta={hasta} /><BotonesExportar data={exportData} /></div></div>
       <EstadoCarga isLoading={isLoading} isError={isError} vacio={servicios.length === 0} refetch={refetch} icono={Boxes}>
         <div className="insight-row">
           <Insight icon={Boxes} tone="info" title={`${fmtN(servicios.length)} servicios distintos`} sub={`${fmtN(totalRealizados)} realizados en el periodo`} />
@@ -483,7 +567,7 @@ export function TabClientes({ desde, hasta }: RangoProps) {
 
   return (
     <div style={{ display: 'grid', gap: 18 }}>
-      <div className="toolbar"><SelectLimite value={limite} onChange={setLimite} /><div style={{ marginLeft: 'auto' }}><BotonesExportar data={exportData} /></div></div>
+      <div className="toolbar"><SelectLimite value={limite} onChange={setLimite} /><div style={{ marginLeft: "auto", display: "flex", gap: 8 }}><BotonDetalle modulo="clientes" desde={desde} hasta={hasta} /><BotonesExportar data={exportData} /></div></div>
       <EstadoCarga isLoading={isLoading} isError={isError} vacio={clientes.length === 0} refetch={refetch} icono={Trophy}>
         <div className="insight-row">
           <Insight icon={Trophy} tone="pos" title={clientes[0] ? `Top: ${clientes[0].nombre}` : 'Sin clientes'} sub={clientes[0] ? `${q(clientes[0].total_comprado ?? 0)} comprado` : undefined} />
@@ -546,7 +630,7 @@ export function TabVendedores({ desde, hasta }: RangoProps) {
   return (
     <EstadoCarga isLoading={isLoading} isError={isError} vacio={vendedores.length === 0} refetch={refetch} icono={Users}>
       <div style={{ display: 'grid', gap: 18 }}>
-        <div className="rep-acciones"><BotonesExportar data={exportData} /></div>
+        <div className="rep-acciones" style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}><BotonDetalle modulo="vendedores" desde={desde} hasta={hasta} /><BotonesExportar data={exportData} /></div>
 
         <div className="insight-row">
           <Insight icon={Users} tone="info" title={`${fmtN(vendedores.length)} vendedores con ventas`} sub={`${fmtN(totalTransacciones)} transacciones en total`} />
@@ -595,7 +679,7 @@ export function TabSucursales({ desde, hasta }: RangoProps) {
   const exportData: ReporteExportData | null = sucursales.length ? {
     titulo: 'Reporte por sucursales', rango: rangoTxt(desde, hasta),
     kpis: r ? [{ label: 'Sucursales', value: fmtN(r.total_sucursales) }, { label: 'Monto global', value: q(r.monto_total_global) }, { label: 'Transacciones', value: fmtN(r.transacciones_total) }, { label: 'Mejor sucursal', value: r.mejor_sucursal }] : undefined,
-    tablas: [{ columnas: [{ label: 'No.' }, { label: 'Sucursal' }, { label: 'Compl.', align: 'right' }, { label: 'Pend.', align: 'right' }, { label: 'Canc.', align: 'right' }, { label: 'Promedio', align: 'right' }, { label: 'Monto total', align: 'right' }],
+    tablas: [{ columnas: [{ label: 'No.' }, { label: 'Sucursal' }, { label: 'Compl.', align: 'right' }, { label: 'Pend.', align: 'right' }, { label: 'Canc.', align: 'right' }, { label: 'Promedio', align: 'right' }, { label: "Facturado", align: "right" }],
       filas: sucursales.map((s, i) => [i + 1, s.nombre, fmtN(s.ventas_completadas), fmtN(s.ventas_pendientes), fmtN(s.ventas_canceladas), q(s.promedio_venta), q(s.monto_total)]) }],
   } : null
 
@@ -607,11 +691,13 @@ export function TabSucursales({ desde, hasta }: RangoProps) {
   return (
     <EstadoCarga isLoading={isLoading} isError={isError} vacio={sucursales.length === 0} refetch={refetch} icono={Building2}>
       <div style={{ display: 'grid', gap: 18 }}>
-        <div className="rep-acciones"><BotonesExportar data={exportData} /></div>
+        <div className="rep-acciones" style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}><BotonDetalle modulo="sucursales" desde={desde} hasta={hasta} /><BotonesExportar data={exportData} /></div>
 
         {r && (
           <div className="insight-row">
-            <Insight icon={Building2} tone="info" title={`${fmtN(r.total_sucursales)} sucursales`} sub={`${fmtN(r.sucursales_activas)} activas · ${q(r.monto_total_global)} en ventas globales`} />
+            {/* "Facturado" y no "vendido": incluye crédito aún no cobrado. El
+                detalle separa facturado, cobrado y cartera pendiente. */}
+            <Insight icon={Building2} tone="info" title={`${fmtN(r.total_sucursales)} sucursales`} sub={`${fmtN(r.sucursales_activas)} activas · ${q(r.monto_total_global)} facturados`} />
             <Insight icon={Trophy} tone="pos" title={`Mejor: ${r.mejor_sucursal}`} sub={`${fmtN(r.transacciones_total)} transacciones en total`} />
             <Insight icon={AlertTriangle} tone={pendientes > 0 ? 'warn' : 'pos'} title={`${fmtN(pendientes)} ventas pendientes`} sub="entre todas las sucursales" />
           </div>
@@ -647,7 +733,7 @@ export function TabSucursales({ desde, hasta }: RangoProps) {
 
         <Bloque titulo="Ventas por sucursal" icon={Building2} iconColor="var(--accent-text)">
           <table className="tbl">
-            <thead><tr><th className="num" style={{ width: 48 }}>No.</th><th>Sucursal</th><th className="num">Completadas</th><th className="num">Pendientes</th><th className="num">Canceladas</th><th className="num">Promedio</th><th className="num">Monto total</th></tr></thead>
+            <thead><tr><th className="num" style={{ width: 48 }}>No.</th><th>Sucursal</th><th className="num">Completadas</th><th className="num">Pendientes</th><th className="num">Canceladas</th><th className="num">Promedio</th><th className="num" title="Suma de las ventas completadas, incluidas las de crédito aún no cobradas. El detalle muestra además lo cobrado y la cartera pendiente.">Facturado</th></tr></thead>
             <tbody>
               {slice.map((s, i) => (
                 <tr key={s.id}>
@@ -707,7 +793,11 @@ export function TabInventario() {
           options={[{ value: 'todos', label: 'Todo el inventario' }, { value: 'normal', label: 'Stock normal' }, { value: 'bajo', label: 'Stock bajo' }, { value: 'agotado', label: 'Agotados' }]} />
         <Select value={categoria} onValueChange={setCategoria} ariaLabel="Categoría"
           options={[{ value: 'todos', label: 'Todas las categorías' }, ...cats.map((c) => ({ value: String(c.id), label: '— '.repeat(c.nivel) + c.nombre }))]} />
-        <div style={{ marginLeft: 'auto' }}><BotonesExportar data={exportData} /></div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          {/* Sin fechas: el detalle elige su propio rango para medir el movimiento */}
+          <BotonDetalle modulo="inventario" />
+          <BotonesExportar data={exportData} />
+        </div>
       </div>
       <EstadoCarga isLoading={isLoading} isError={isError} vacio={!r} refetch={refetch} icono={Package}>
         {r && (
@@ -812,7 +902,10 @@ export function TabGanancias({ desde, hasta }: RangoProps) {
           options={[{ value: 'todos', label: 'Todas las sucursales' }, ...(cat?.sucursales ?? []).map((s) => ({ value: String(s.id), label: s.nombre }))]} />
         <Select value={vendedor} onValueChange={setVendedor} ariaLabel="Vendedor"
           options={[{ value: 'todos', label: 'Todos los vendedores' }, ...(cat?.vendedores ?? []).map((v) => ({ value: String(v.id), label: v.nombre }))]} />
-        <div style={{ marginLeft: 'auto' }}><BotonesExportar data={exportData} /></div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <BotonDetalle modulo="ganancias" desde={desde} hasta={hasta} />
+          <BotonesExportar data={exportData} />
+        </div>
       </div>
       <EstadoCarga isLoading={isLoading} isError={isError} vacio={!r || items.length === 0} refetch={refetch} icono={CircleDollarSign}>
         {r && (
@@ -871,7 +964,13 @@ export function TabGanancias({ desde, hasta }: RangoProps) {
                   {slice.map((it, i) => (
                     <tr key={i}>
                       <td className="num muted tnum">{(meta.from ?? 1) + i}</td>
-                      <td style={{ fontWeight: 500 }}>{it.nombre}{!it.tiene_costo && <span className="muted" title="Sin costo registrado"> ⚠</span>}</td>
+                      <td style={{ fontWeight: 500 }}>
+                        {/* De lo agregado al detalle: abre los eventos de este item */}
+                        {it.producto_id || it.servicio_id ? (
+                          <Link to={enlaceItem(it, desde, hasta)} title={`Ver los ingresos de ${it.nombre}`}>{it.nombre}</Link>
+                        ) : it.nombre}
+                        {!it.tiene_costo && <span className="muted" title="Sin costo registrado"> ⚠</span>}
+                      </td>
                       <td className="muted" style={{ textTransform: 'capitalize' }}>{it.tipo}</td>
                       <td className="num tnum">{fmtN(it.unidades)}</td>
                       <td className="num tnum">{q(it.ingresos)}</td>
@@ -918,7 +1017,10 @@ export function TabTienda({ desde, hasta }: RangoProps) {
     <EstadoCarga isLoading={isLoading} isError={isError} vacio={!r || r.total_pedidos === 0} refetch={refetch} icono={Store}>
       {r && (
         <div style={{ display: 'grid', gap: 18 }}>
-          <div className="rep-acciones"><BotonesExportar data={exportData} /></div>
+          <div className="rep-acciones" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <BotonDetalle modulo="tienda" desde={desde} hasta={hasta} />
+            <BotonesExportar data={exportData} />
+          </div>
 
           <div className="insight-row">
             <Insight icon={Store} tone="info" title={`${fmtN(r.total_pedidos)} pedidos registrados`} sub={`${q(r.monto_total)} en ventas de tienda`} />
