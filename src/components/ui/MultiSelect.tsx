@@ -70,13 +70,23 @@ export function MultiSelect({
             chips.map((c) => (
               <span key={c.value} className="multi-chip">
                 {c.label}
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); toggle(c.value) }}
+                {/* El disparador del desplegable ya es un <button>, así que la X
+                    no puede serlo: un botón dentro de otro es HTML inválido y
+                    React lo reporta como error de anidamiento. */}
+                <span
+                  role="button"
+                  tabIndex={0}
                   aria-label={`Quitar ${c.label}`}
+                  onClick={(e) => { e.stopPropagation(); toggle(c.value) }}
+                  onKeyDown={(e) => {
+                    if (e.key !== 'Enter' && e.key !== ' ') return
+                    e.preventDefault()
+                    e.stopPropagation()
+                    toggle(c.value)
+                  }}
                 >
                   <X size={12} />
-                </button>
+                </span>
               </span>
             ))
           )}

@@ -11,7 +11,6 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Lightbox } from '@/components/ui/Lightbox'
 import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
 import { Pagination } from '@/components/ui/Pagination'
-import { ProductoForm } from './ProductoForm'
 import { AjustarStock } from './AjustarStock'
 import { productosApi, catalogosApi } from '@/lib/api'
 import { useAutoPageSize } from '@/lib/hooks'
@@ -35,8 +34,6 @@ export default function ProductosPage() {
   const [sort, setSort] = useState('nombre_asc')
   const [page, setPage] = useState(1)
   const [aEliminar, setAEliminar] = useState<Producto | null>(null)
-  const [formOpen, setFormOpen] = useState(false)
-  const [productoEditar, setProductoEditar] = useState<Producto | null>(null)
   const [vista, setVista] = useState<Vista>(() => (localStorage.getItem('productos_vista') as Vista) || 'tabla')
   const [zoom, setZoom] = useState<string | null>(null)
   const [aReestockear, setAReestockear] = useState<Producto | null>(null)
@@ -49,8 +46,8 @@ export default function ProductosPage() {
   const { ref: cardsRef, perPage: autoPerPage } = useAutoPageSize({ rows: 4 })
   const perPage = vista === 'cards' ? autoPerPage : PER_PAGE
 
-  const abrirNuevo = () => { setProductoEditar(null); setFormOpen(true) }
-  const abrirEditar = (p: Producto) => { setProductoEditar(p); setFormOpen(true) }
+  const abrirNuevo = () => navigate('/productos/nuevo')
+  const abrirEditar = (p: Producto) => navigate(`/productos/${p.id}/editar`)
 
   useEffect(() => { localStorage.setItem('productos_vista', vista) }, [vista])
 
@@ -242,7 +239,6 @@ export default function ProductosPage() {
         onConfirm={() => aEliminar && eliminar.mutate(aEliminar.id)}
       />
 
-      <ProductoForm open={formOpen} onClose={() => setFormOpen(false)} producto={productoEditar} />
       <AjustarStock open={!!aReestockear} onClose={() => setAReestockear(null)} producto={aReestockear} />
       <Lightbox src={zoom} onClose={() => setZoom(null)} />
     </>

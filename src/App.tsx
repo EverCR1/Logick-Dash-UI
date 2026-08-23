@@ -14,6 +14,7 @@ import { NAV, type NavItem } from '@/config/nav'
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage'))
 const ProductosPage = lazy(() => import('@/features/productos/ProductosPage'))
 const ProductoDetalle = lazy(() => import('@/features/productos/ProductoDetalle'))
+const ProductoFormPage = lazy(() => import('@/features/productos/ProductoFormPage'))
 const ClientesPage = lazy(() => import('@/features/clientes/ClientesPage'))
 const ClienteDetalle = lazy(() => import('@/features/clientes/ClienteDetalle'))
 const ProveedoresPage = lazy(() => import('@/features/proveedores/ProveedoresPage'))
@@ -89,6 +90,8 @@ export default function App() {
             <Route path="/clientes/:id" element={<Suspense fallback={<CargandoPagina />}><ClienteDetalle /></Suspense>} />
             <Route path="/proveedores/:id" element={<Suspense fallback={<CargandoPagina />}><ProveedorDetalle /></Suspense>} />
             <Route path="/sucursales/:id" element={<Suspense fallback={<CargandoPagina />}><SucursalDetalle /></Suspense>} />
+            <Route path="/productos/nuevo" element={<Suspense fallback={<CargandoPagina />}><ProductoFormPage /></Suspense>} />
+            <Route path="/productos/:id/editar" element={<Suspense fallback={<CargandoPagina />}><ProductoFormPage /></Suspense>} />
             <Route path="/productos/:id" element={<Suspense fallback={<CargandoPagina />}><ProductoDetalle /></Suspense>} />
             <Route path="/servicios/:id" element={<Suspense fallback={<CargandoPagina />}><ServicioDetalle /></Suspense>} />
             <Route path="/creditos/:id" element={<Suspense fallback={<CargandoPagina />}><CreditoDetalle /></Suspense>} />

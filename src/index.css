@@ -1819,7 +1819,9 @@ input.rango-date { width: 138px; }
   gap: 14px;
 }
 .form-field { display: flex; flex-direction: column; gap: 6px; }
-.form-field.col-2 { grid-column: 1 / -1; }
+/* Ocupa la fila entera. Vale para cualquier hijo de la rejilla, no solo para
+   un .form-field: la matriz de variantes y el panel del grupo también la usan. */
+.form-grid > .col-2 { grid-column: 1 / -1; }
 .form-field label { font-size: 12.5px; font-weight: 500; color: var(--text-muted); }
 .form-field label .req { color: var(--neg); }
 .form-input, .form-textarea {
@@ -1839,11 +1841,18 @@ input.rango-date { width: 138px; }
 .form-input[aria-invalid="true"], .form-textarea[aria-invalid="true"] { border-color: var(--neg); }
 .form-textarea { resize: vertical; min-height: 70px; }
 .form-error { font-size: 11.5px; color: var(--neg); }
+/* Separador de secciones. En una página larga —el formulario con variantes pasa
+   de siete bloques— el título solo no basta para marcar dónde empieza cada uno:
+   lleva una línea arriba y aire suficiente para leerse como corte. */
 .form-section-title {
   grid-column: 1 / -1;
   font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--text-faint); margin-top: 6px;
+  color: var(--text-faint);
+  margin-top: 18px; padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
+/* El primero abre el formulario: no necesita separarse de nada */
+.form-grid > .form-section-title:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
 .form-grid .ui-select-trigger { width: 100%; }
 .form-check {
   display: flex; align-items: center; gap: 9px;
@@ -1894,8 +1903,16 @@ input.rango-date { width: 138px; }
   background: var(--accent-soft); color: var(--accent-text);
   border-radius: 6px; padding: 2px 4px 2px 8px; font-size: 12px; font-weight: 500;
 }
-.multi-chip button { background: transparent; border: 0; color: inherit; display: inline-flex; padding: 0; opacity: 0.7; }
-.multi-chip button:hover { opacity: 1; }
+/* La X es un span con role=button: dentro del disparador, que ya es un botón,
+   un <button> anidado sería HTML inválido. */
+.multi-chip button,
+.multi-chip [role="button"] {
+  background: transparent; border: 0; color: inherit;
+  display: inline-flex; padding: 0; opacity: 0.7; cursor: pointer;
+}
+.multi-chip button:hover,
+.multi-chip [role="button"]:hover { opacity: 1; }
+.multi-chip [role="button"]:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; border-radius: 3px; }
 .multi-content {
   background: var(--bg-elev-1);
   border: 1px solid var(--border);
@@ -1968,6 +1985,379 @@ input.rango-date { width: 138px; }
 }
 .link-btn:hover { text-decoration: underline; }
 .link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+/* ============================================================
+   Formulario de producto en página propia
+   ============================================================ */
+
+.prod-form-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-grid);
+  /* La página scrollea con la ventana y la topbar es sticky en top:0, así que
+     todo lo que se fije aquí tiene que descontar su altura. */
+  --topbar-h: 56px;
+  --head-h: 84px;
+}
+
+/* Cabecera fija: el formulario es largo y guardar debe estar siempre a la vista,
+   sin obligar a volver al final. z-index por debajo de la topbar (20) para que
+   se deslice bajo ella y no la tape. */
+.prod-form-head {
+  position: sticky;
+  top: var(--topbar-h);
+  z-index: 19;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.prod-form-titulo { min-width: 0; flex: 1; }
+.prod-form-acciones { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* Dos columnas: el formulario a la izquierda, las imágenes fijas a la derecha
+   como referencia mientras se editan los demás campos. */
+.prod-form-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--gap-grid);
+  align-items: start;
+}
+/* El formulario ya no está dentro del modal, que le daba fondo y relleno:
+   se le da su propio panel para que no quede suelto sobre la página. */
+.prod-form-main {
+  min-width: 0;
+  padding: var(--pad-card);
+  background: var(--card-bg);
+  border: var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+}
+/* Se fija por debajo de la topbar y de la cabecera del formulario. Con la lista
+   de variantes puede crecer más que la ventana, así que scrollea por dentro en
+   vez de arrastrar la página. */
+.prod-form-side {
+  position: sticky;
+  top: calc(var(--topbar-h) + var(--head-h));
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-grid);
+  max-height: calc(100vh - var(--topbar-h) - var(--head-h) - 24px);
+  overflow-y: auto;
+}
+
+/* La barra inferior solo existe en móvil */
+.prod-form-barra { display: none; }
+
+/* Tablet: una columna. Las imágenes quedan al final, como estaban en el modal.
+   Las tarjetas laterales van lado a lado para no alargar aún más la página. */
+@media (max-width: 1100px) {
+  .prod-form-layout { grid-template-columns: 1fr; }
+  .prod-form-side {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    align-items: start;
+  }
+}
+
+@media (max-width: 620px) {
+  .prod-form-side { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  /* Dos columnas de campos no caben: las etiquetas y los inputs quedan
+     ilegibles antes que el formulario resulte más corto. */
+  .form-grid { grid-template-columns: 1fr; }
+
+  /* La cabecera no cabe con las acciones: bajan a una barra fija, como el
+     ticket del POS. La cabecera se queda solo con volver y el título. */
+  .prod-form-head { gap: 10px; padding: 10px 0; }
+  .prod-form-acciones { display: none; }
+
+  .prod-form-barra {
+    display: flex;
+    gap: 8px;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 60;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: var(--card-bg);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, .1);
+  }
+  .prod-form-barra .btn { flex: 1; justify-content: center; }
+  /* Espacio para que la barra no tape el final del formulario */
+  .prod-form-page { padding-bottom: 64px; }
+}
+
+/* ── Selector de modo de creación ──────────────────────────────────────────── */
+/* Va en su propio panel: es una decisión previa al formulario y cambia lo que
+   este muestra, así que no debe leerse como un campo más. */
+.modo-selector {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: var(--pad-card);
+  background: var(--card-bg);
+  border: var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+}
+.modo-label { font-size: 12.5px; font-weight: 600; color: var(--text-muted); }
+.modo-opciones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+.modo-opcion {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color .14s ease, background .14s ease;
+}
+.modo-opcion:hover { border-color: var(--accent); }
+.modo-opcion[data-on="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.modo-opcion-titulo { font-size: 13px; font-weight: 600; color: var(--text); }
+.modo-opcion[data-on="true"] .modo-opcion-titulo { color: var(--accent-text); }
+.modo-opcion-ayuda { font-size: 11.5px; color: var(--text-muted); }
+
+/* ── Atributos que varían ──────────────────────────────────────────────────── */
+.ejes-box {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg-elev-2);
+}
+.eje-fila { display: grid; grid-template-columns: 200px 1fr auto; gap: 10px; align-items: start; }
+/* El nombre del atributo es corto y los valores crecen: por debajo de esto la
+   columna fija de 200px deja los chips en una franja inservible. */
+@media (max-width: 900px) {
+  .eje-fila {
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--bg-elev-1);
+  }
+  .eje-valores { grid-column: 1 / -1; }
+}
+.eje-nombre { position: relative; }
+.eje-marca {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--accent-text); background: var(--accent-soft);
+  padding: 2px 6px; border-radius: 5px; pointer-events: none;
+}
+/* Los valores se comportan como un campo de chips: el input crece al final */
+.eje-valores {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  min-height: 38px; padding: 5px 8px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg-elev-1);
+}
+.eje-valores:focus-within { border-color: var(--accent); }
+.eje-input-valor {
+  flex: 1; min-width: 130px;
+  border: 0; background: transparent; outline: none;
+  font-size: 13px; color: var(--text);
+}
+.eje-input-valor::placeholder { color: var(--text-faint); }
+.eje-mas {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; flex-shrink: 0;
+  border: 1px dashed var(--border-strong); border-radius: 7px;
+  background: transparent; color: var(--text-muted); cursor: pointer;
+}
+.eje-mas:hover:not(:disabled) { border-style: solid; border-color: var(--accent); color: var(--accent-text); }
+.eje-mas:disabled { opacity: .4; cursor: default; }
+.ejes-pie { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.ejes-conteo {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; color: var(--text-muted);
+}
+.ejes-conteo[data-tono="warn"] { color: var(--warn); }
+.ejes-conteo[data-tono="neg"] { color: var(--neg); }
+.aviso-inline {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 11px; border-radius: 8px; font-size: 12px; line-height: 1.45;
+}
+.aviso-inline[data-tono="warn"] { background: var(--warn-soft); color: var(--warn); }
+.aviso-inline[data-tono="neg"] { background: var(--neg-soft); color: var(--neg); }
+.aviso-inline svg { flex-shrink: 0; margin-top: 2px; }
+
+/* ── Matriz de variantes ───────────────────────────────────────────────────── */
+.matriz {
+  border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+  background: var(--card-bg);
+}
+.matriz-cabecera {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  font-size: 12.5px; background: var(--bg-elev-2);
+}
+/* Atajos de selección: actúan sobre grupos de filas en vez de una a una */
+.matriz-atajos {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 9px 14px; border-bottom: 1px solid var(--border);
+  background: var(--bg-elev-1);
+}
+.matriz-atajos-globales { display: flex; gap: 6px; flex-shrink: 0; }
+.matriz-atajos-valores { display: flex; gap: 6px; flex-wrap: wrap; }
+/* Tres estados: todas sus filas dentro, ninguna, o parte. El parcial se marca
+   con borde discontinuo para que se note que no es un sí ni un no. */
+.matriz-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 9px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--bg-elev-2);
+  font-size: 12px; color: var(--text-muted); cursor: pointer;
+  transition: border-color .12s ease, background .12s ease, color .12s ease;
+}
+.matriz-chip:hover { border-color: var(--accent); }
+.matriz-chip[data-estado="todas"] {
+  border-color: var(--accent); background: var(--accent-soft); color: var(--accent-text); font-weight: 600;
+}
+.matriz-chip[data-estado="parcial"] { border-style: dashed; border-color: var(--warn); color: var(--warn); }
+.matriz-chip[data-estado="ninguna"] { opacity: .6; }
+.matriz-chip-conteo { font-size: 10.5px; font-variant-numeric: tabular-nums; opacity: .75; }
+
+/* Combinaciones descartadas: fuera de la tabla y plegadas, para que la lista de
+   arriba sea solo lo que existe y no una mezcla con lo que nunca se vendió. */
+.matriz-descartadas { border-top: 1px solid var(--border); background: var(--bg-elev-2); }
+.matriz-descartadas-head { display: flex; align-items: center; gap: 8px; padding: 9px 14px; }
+.matriz-descartadas-toggle {
+  display: flex; align-items: center; gap: 8px; flex: 1;
+  border: 0; background: transparent;
+  font: inherit; font-size: 12.5px; color: var(--text-muted); text-align: left; cursor: pointer;
+}
+.matriz-descartadas-toggle:hover { color: var(--text); }
+.matriz-descartadas-accion {
+  border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: 11.5px; color: var(--accent-text); text-decoration: underline;
+}
+.matriz-descartadas-lista {
+  margin: 0; padding: 0 14px 12px; list-style: none;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.matriz-descartadas-lista li {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 7px 10px; border-radius: 8px;
+  background: var(--card-bg); border: 1px solid var(--border);
+  font-size: 12.5px; color: var(--text-muted);
+}
+
+/* La tabla se desplaza; la columna de la variante se queda fija como referencia */
+.matriz-scroll { overflow-x: auto; }
+.matriz-tabla { min-width: 1040px; }
+.matriz-tabla th, .matriz-tabla td { padding: 8px 10px; }
+/* Sin ancho propio, el nombre de la variante se parte letra por letra cuando el
+   resto de columnas reclama espacio. Es la columna que identifica la fila. */
+.matriz-tabla .col-id { position: sticky; left: 0; z-index: 2; background: var(--card-bg); min-width: 210px; }
+.matriz-tabla thead .col-id { z-index: 3; background: var(--bg-elev-2); }
+.matriz-tabla tr[data-excluida] { opacity: .45; }
+.matriz-tabla tr[data-excluida] .col-id { background: var(--card-bg); }
+.matriz-th { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.matriz-campo { position: relative; }
+.matriz-campo input { height: 32px; padding: 0 8px; font-size: 12.5px; text-align: right; }
+/* SKU y código de barras son texto, no cifras: alineados a la derecha se leían
+   por el final y el prefijo quedaba fuera de vista. */
+.matriz-campo[data-texto] input { text-align: left; }
+.matriz-campo[data-prefijo]::before {
+  content: attr(data-prefijo);
+  position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+  font-size: 11px; color: var(--text-faint); pointer-events: none;
+}
+.matriz-campo[data-prefijo] input { padding-left: 20px; }
+.matriz-error { display: block; font-size: 10.5px; color: var(--neg); margin-top: 2px; text-align: right; }
+
+/* Tarjetas: solo en móvil. Escribir en un campo numérico desplazándose en
+   horizontal es de las peores interacciones táctiles que hay. */
+.matriz-tarjetas { display: none; }
+
+@media (max-width: 760px) {
+  .matriz-scroll { display: none; }
+  .matriz-tarjetas { display: flex; flex-direction: column; }
+  .matriz-tarjeta { border-bottom: 1px solid var(--border); }
+  .matriz-tarjeta:last-child { border-bottom: 0; }
+  .matriz-tarjeta[data-excluida] { opacity: .5; }
+  .matriz-tarjeta[data-error] { background: var(--neg-soft); }
+  .matriz-tarjeta-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+  .matriz-tarjeta-titulo {
+    flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: transparent; border: 0; text-align: left; color: inherit; font: inherit; cursor: pointer;
+  }
+  .matriz-tarjeta-campos {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    padding: 0 12px 12px;
+  }
+  .matriz-tarjeta-campos .form-field span { font-size: 11.5px; color: var(--text-muted); }
+  .matriz-tarjeta-campos .matriz-campo input { text-align: left; }
+  .matriz-tarjeta-campos .matriz-error { text-align: left; }
+}
+
+/* ── Imágenes por variante ─────────────────────────────────────────────────── */
+.img-boton { width: 100%; justify-content: center; }
+.img-boton[data-vacio] { color: var(--text-faint); }
+
+.img-drop {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  padding: 22px; border: 1px dashed var(--border-strong); border-radius: 10px;
+  background: var(--bg-elev-2); color: var(--text-muted); cursor: pointer;
+  font-size: 13px; transition: border-color .14s ease, background .14s ease;
+}
+.img-drop:hover { border-color: var(--accent); background: var(--accent-soft); }
+
+.img-previews { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.img-preview {
+  position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden;
+  border: 1px solid var(--border);
+}
+.img-preview[data-principal] { border: 2px solid var(--accent); }
+.img-preview img { width: 100%; height: 100%; object-fit: cover; }
+.img-preview-acciones { position: absolute; top: 4px; right: 4px; display: flex; gap: 4px; }
+.img-preview-acciones button {
+  width: 24px; height: 24px; border: 0; border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, .55); color: #fff; cursor: pointer;
+}
+.img-preview[data-principal] .img-preview-acciones button:first-child { color: #f59e0b; }
+.img-preview-acciones button:last-child:hover { color: #fca5a5; }
+
+/* ── Progreso de subida ────────────────────────────────────────────────────── */
+.subida-lista { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.subida-lista li {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 8px; font-size: 12.5px;
+}
+.subida-lista li[data-estado="subiendo"] { background: var(--bg-elev-2); }
+.subida-lista li[data-estado="error"] { background: var(--neg-soft); }
+.subida-nombre { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.subida-icono { display: inline-flex; width: 16px; justify-content: center; color: var(--text-faint); }
+.subida-lista li[data-estado="listo"] .subida-icono { color: var(--pos); }
+.subida-lista li[data-estado="error"] .subida-icono { color: var(--neg); }
+.subida-punto { width: 6px; height: 6px; border-radius: 999px; background: var(--border-strong); }
+
+/* ── Resumen de lo que se creará ───────────────────────────────────────────── */
+.resumen-variantes { display: flex; flex-direction: column; gap: 10px; }
+.resumen-cifras { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-muted); }
+.resumen-cifras > div { display: inline-flex; align-items: center; gap: 6px; }
+.resumen-cifras b { color: var(--text); font-size: 14px; }
+.resumen-lista {
+  display: flex; flex-direction: column; gap: 7px;
+  margin: 0; padding: 0; list-style: none;
+  max-height: 320px; overflow-y: auto;
+}
+.resumen-lista li { display: flex; flex-direction: column; gap: 1px; font-size: 12px; }
+.resumen-nombre { font-weight: 500; color: var(--text); }
+.resumen-lista .muted { font-size: 11px; }
 
 /* Encabezado de las vistas de detalle: flecha de volver junto al título */
 .det-titulo { display: flex; align-items: center; gap: 12px; min-width: 0; }
@@ -3195,11 +3585,31 @@ input.rango-date { width: 138px; }
 .switch-inline input { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
 
 /* Editor de atributos de variante */
-.atributos-box { display: grid; gap: 8px; }
+/* Enmarcado como los atributos que varían, para que las dos formas de definir
+   una variante se lean igual aunque una cree un producto y la otra varios. */
+.atributos-box {
+  display: grid; gap: 10px;
+  padding: 14px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg-elev-2);
+}
 .atributo-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: center; }
+@media (max-width: 620px) {
+  /* Nombre y valor en 1fr cada uno dejan campos de ~120px con la X al lado */
+  .atributo-row { grid-template-columns: 1fr auto; }
+  .atributo-row input:nth-child(2) { grid-column: 1 / -1; }
+}
 
 /* Vinculación de productos (variantes) */
 .vinc-box { display: grid; gap: 8px; margin-top: 8px; padding-top: 12px; border-top: 1px dashed var(--border); }
+/* Grupo ya decidido por la URL: se presenta como un hecho, no como algo por
+   elegir, así que va enmarcado en vez de colgando de una línea punteada. */
+.vinc-box[data-fijado] {
+  margin-top: 0; padding: 12px 14px; border-top: 0;
+  border: 1px solid var(--accent); border-radius: 10px;
+  background: var(--accent-soft);
+}
+.vinc-box[data-fijado] .vinc-title { color: var(--accent-text); }
+.vinc-box[data-fijado] .vinc-item { background: var(--card-bg); }
 .vinc-title { font-size: 12px; font-weight: 600; color: var(--text); }
 .vinc-list { display: grid; gap: 6px; }
 .vinc-item {

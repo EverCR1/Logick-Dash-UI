@@ -4,10 +4,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   Loader2, ChevronsLeft, Pencil, Ban, CheckCircle2, Truck, Barcode, MapPin, ShieldCheck,
-  Tag, ShoppingBag, TrendingUp, Boxes, CalendarDays, RefreshCw, AlertCircle, AlertTriangle, Trash2, Package, X, Star,
+  Tag, ShoppingBag, TrendingUp, Boxes, CalendarDays, RefreshCw, AlertCircle, AlertTriangle, Trash2, Package, X, Star, Plus,
 } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { ProductoForm } from './ProductoForm'
 import { productosApi } from '@/lib/api'
 import { q, fmtFecha } from '@/lib/format'
 import type { ImagenProducto, Producto } from '@/types/producto'
@@ -21,7 +20,6 @@ export default function ProductoDetalle() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [editar, setEditar] = useState(false)
   const [confirmarEliminar, setConfirmarEliminar] = useState(false)
   const [lightbox, setLightbox] = useState<string | null>(null)
 
@@ -78,7 +76,7 @@ export default function ProductoDetalle() {
           <button className="btn" disabled={cambiarEstado.isPending} onClick={() => cambiarEstado.mutate(activo ? 'inactivo' : 'activo')}>
             {activo ? <><Ban size={15} /> Desactivar</> : <><CheckCircle2 size={15} /> Activar</>}
           </button>
-          <button className="btn btn-primary" onClick={() => setEditar(true)}><Pencil size={15} /> Editar producto</button>
+          <button className="btn btn-primary" onClick={() => navigate(`/productos/${p.id}/editar`)}><Pencil size={15} /> Editar producto</button>
         </div>
       </div>
 
@@ -179,7 +177,6 @@ export default function ProductoDetalle() {
         </div>
       )}
 
-      <ProductoForm open={editar} onClose={() => setEditar(false)} producto={p} />
       <ConfirmDialog open={confirmarEliminar} onOpenChange={setConfirmarEliminar}
         title="Eliminar producto" description={`¿Eliminar "${p.nombre}"? Podrás restaurarlo, pero desaparecerá del catálogo.`}
         confirmLabel="Eliminar" danger loading={eliminar.isPending} onConfirm={() => eliminar.mutate()} />
@@ -260,6 +257,18 @@ function DetailTabs({ p, onImg }: { p: Producto; onImg: (url: string) => void })
 
       {tab === 'variantes' && (
         <div style={{ padding: 'var(--pad-card)' }}>
+          {/* Antes había que ir a "Nuevo producto", buscar un hermano y copiar
+              sus datos a mano. El enlace lleva el grupo y el producto modelo. */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+            <span className="muted" style={{ fontSize: 12.5 }}>
+              {variantes.length} {variantes.length === 1 ? 'variante' : 'variantes'} en el grupo <code>{p.grupo_variante}</code>
+            </span>
+            <button className="btn btn-primary btn-sm"
+              onClick={() => navigate(`/productos/nuevo?grupo=${encodeURIComponent(p.grupo_variante!)}&desde=${p.id}`)}>
+              <Plus size={14} /> Agregar variante
+            </button>
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14 }}>
             {variantes.map((v) => {
               const img = v.imagenes?.find(i => i.es_principal) ?? v.imagenes?.[0]
