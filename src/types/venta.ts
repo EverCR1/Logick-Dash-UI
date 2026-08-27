@@ -2,7 +2,9 @@ import type { OpcionCatalogo, Paginado } from './producto'
 
 export type VentaEstado = 'completada' | 'pendiente' | 'cancelada'
 export type MetodoPago = 'efectivo' | 'tarjeta' | 'transferencia' | 'mixto' | 'credito'
-export type ItemTipo = 'producto' | 'servicio' | 'otro'
+/** Solo dos: una línea escrita a mano sigue siendo un producto o un servicio.
+ *  Lo que la distingue es no tener producto_id ni servicio_id. */
+export type ItemTipo = 'producto' | 'servicio'
 
 export interface VentaDetalle {
   id: number
@@ -125,4 +127,6 @@ export interface StoreVentaPayload {
   observaciones?: string | null
   nombre_cliente_credito?: string | null
   sucursal_id?: number | null
+  /** Origen: la cotización queda marcada como convertida al guardarse la venta. */
+  cotizacion_id?: number | null
 }

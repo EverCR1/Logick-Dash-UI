@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { toast } from 'sonner'
@@ -11,7 +11,8 @@ import { Select } from '@/components/ui/Select'
 import { Pagination } from '@/components/ui/Pagination'
 import { CrearClienteRapido } from './CrearClienteRapido'
 import { useAuth } from '@/lib/auth'
-import { ventasApi, catalogosApi } from '@/lib/api'
+import { ventasApi, catalogosApi, cotizacionesApi } from '@/lib/api'
+import { DiferenciasCotizacion } from '../cotizaciones/DiferenciasCotizacion'
 import { useDebounce, usePaginacionLocal, useAutoPageSize } from '@/lib/hooks'
 import { q } from '@/lib/format'
 import { METODO_LABEL } from './venta-estados'
@@ -19,7 +20,7 @@ import type { ClienteBusqueda, MetodoPago, ResultadoBusqueda, VentaItemPayload }
 
 interface CartItem {
   key: string
-  tipo: 'producto' | 'servicio' | 'otro'
+  tipo: 'producto' | 'servicio'
   descripcion: string
   precio_unitario: number
   cantidad: number
@@ -59,6 +60,11 @@ export default function NuevaVenta() {
   const queryClient = useQueryClient()
   const { usuario } = useAuth()
 
+  // Venta que nace de una cotización: /ventas/nueva?cotizacion=ID
+  const [params] = useSearchParams()
+  const cotizacionId = params.get('cotizacion') ? Number(params.get('cotizacion')) : null
+  const [avisoDif, setAvisoDif] = useState(true)
+
   const [vista, setVista] = useState<Vista>(() => (localStorage.getItem('ventas_nueva_vista') as Vista) || 'terminal')
   useEffect(() => { localStorage.setItem('ventas_nueva_vista', vista) }, [vista])
 
@@ -84,6 +90,44 @@ export default function NuevaVenta() {
   useEffect(() => {
     if (usuario?.sucursal_id && sucursalId === 'default') setSucursalId(String(usuario.sucursal_id))
   }, [usuario]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Precarga desde una cotización ────────────────────────────────────────────
+  const desdeCotizacion = useQuery({
+    queryKey: ['cotizacion-para-venta', cotizacionId],
+    queryFn: () => cotizacionesApi.paraVenta(cotizacionId!),
+    enabled: cotizacionId !== null,
+    // Una sola vez: si el vendedor ya ajustó precios a mano, un refetch se los
+    // pisaría con los de la cotización.
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+  })
+
+  useEffect(() => {
+    const d = desdeCotizacion.data
+    if (!d) return
+    setCart(d.items.map((it) => ({
+      key: nuevaKey(),
+      tipo: it.tipo,
+      descripcion: it.descripcion,
+      // El precio cotizado, no el de hoy: es lo que se le prometió al cliente.
+      // La diferencia se avisa arriba y se puede corregir a mano.
+      precio_unitario: Number(it.precio_unitario) || 0,
+      cantidad: it.cantidad,
+      descuento: Number(it.descuento) || 0,
+      producto_id: it.producto_id ?? undefined,
+      servicio_id: it.servicio_id ?? undefined,
+      stock: it.stock ?? undefined,
+      custom: it.producto_id == null && it.servicio_id == null,
+      costo: it.costo ?? undefined,
+    })))
+    if (d.cotizacion.cliente) setCliente(d.cotizacion.cliente)
+    if (d.cotizacion.sucursal_id) setSucursalId(String(d.cotizacion.sucursal_id))
+    if (d.cotizacion.observaciones) setObservaciones(d.cotizacion.observaciones)
+  }, [desdeCotizacion.data])
+
+  useEffect(() => {
+    if (desdeCotizacion.isError) toast.error('No se pudo cargar la cotización')
+  }, [desdeCotizacion.isError])
 
   // ── Búsqueda vista Formulario (dropdown flotante) ────────────────────────────
   const habilitarBusqueda = queryDebounced.trim().length >= 1
@@ -218,6 +262,8 @@ export default function NuevaVenta() {
         items, cliente_id: cliente?.id ?? null, metodo_pago: metodo,
         sucursal_id: sucursalId !== 'default' ? Number(sucursalId) : null,
         observaciones: observaciones.trim() || null,
+        // El backend marca la cotización como convertida solo si la venta se guarda
+        cotizacion_id: cotizacionId,
       })
     },
     onSuccess: (venta) => {
@@ -226,6 +272,8 @@ export default function NuevaVenta() {
       for (const key of [['ventas'], ['dashboard'], ['dashboard-serie'], ['rep-resumen'], ['rep-ganancias']]) {
         queryClient.invalidateQueries({ queryKey: key })
       }
+      // La cotización acaba de quedar convertida
+      if (cotizacionId) queryClient.invalidateQueries({ queryKey: ['cotizaciones'] })
       navigate('/ventas')
     },
     onError: (err) => {
@@ -290,12 +338,18 @@ export default function NuevaVenta() {
     <>
       <div className="page-head" style={{ alignItems: 'center' }}>
         <button className="back-link" onClick={() => navigate('/ventas')}><ChevronsLeft /> Ventas</button>
-        <div style={{ fontWeight: 600, fontSize: 16 }}>Nueva venta</div>
+        <div style={{ fontWeight: 600, fontSize: 16 }}>
+          {cotizacionId ? `Venta desde ${desdeCotizacion.data?.cotizacion.numero_cotizacion ?? 'cotización'}` : 'Nueva venta'}
+        </div>
         <div className="pos-view-toggle" style={{ marginLeft: 'auto' }}>
           <button className="pos-view-btn" data-on={vista === 'formulario'} onClick={() => setVista('formulario')}>Formulario</button>
           <button className="pos-view-btn" data-on={vista === 'terminal'} onClick={() => setVista('terminal')}>Terminal POS</button>
         </div>
       </div>
+
+      {avisoDif && desdeCotizacion.data && (
+        <DiferenciasCotizacion datos={desdeCotizacion.data} onCerrar={() => setAvisoDif(false)} />
+      )}
 
       {vista === 'terminal' ? (
         // ══════════════ VISTA TERMINAL POS ══════════════

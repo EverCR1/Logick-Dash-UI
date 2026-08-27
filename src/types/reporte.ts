@@ -173,7 +173,7 @@ export interface GananciaEvento {
  */
 export interface VentaLinea {
   id: number
-  tipo: 'producto' | 'servicio' | 'otro'
+  tipo: 'producto' | 'servicio'
   cantidad: number
   descripcion: string
   precio_unitario: string

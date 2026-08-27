@@ -38,6 +38,8 @@ const CreditoDetalle = lazy(() => import('@/features/creditos/CreditoDetalle'))
 const PedidosPage = lazy(() => import('@/features/pedidos/PedidosPage'))
 const VentasPage = lazy(() => import('@/features/ventas/VentasPage'))
 const NuevaVenta = lazy(() => import('@/features/ventas/NuevaVenta'))
+const CotizacionesPage = lazy(() => import('@/features/cotizaciones/CotizacionesPage'))
+const NuevaCotizacion = lazy(() => import('@/features/cotizaciones/NuevaCotizacion'))
 
 // Aplana los items de navegación; el dashboard tiene su propia página, el resto
 // son placeholders hasta que construyamos cada módulo.
@@ -61,6 +63,7 @@ const PAGINAS: Record<string, React.ComponentType> = {
   '/creditos': CreditosPage,
   '/pedidos': PedidosPage,
   '/ventas': VentasPage,
+  '/cotizaciones': CotizacionesPage,
 }
 
 function CargandoPagina() {
@@ -96,6 +99,8 @@ export default function App() {
             <Route path="/servicios/:id" element={<Suspense fallback={<CargandoPagina />}><ServicioDetalle /></Suspense>} />
             <Route path="/creditos/:id" element={<Suspense fallback={<CargandoPagina />}><CreditoDetalle /></Suspense>} />
             <Route path="/ventas/nueva" element={<Suspense fallback={<CargandoPagina />}><NuevaVenta /></Suspense>} />
+            <Route path="/cotizaciones/nueva" element={<Suspense fallback={<CargandoPagina />}><NuevaCotizacion /></Suspense>} />
+            <Route path="/cotizaciones/:id/editar" element={<Suspense fallback={<CargandoPagina />}><NuevaCotizacion /></Suspense>} />
             {/* Vistas de detalle de reportes; heredan los roles de /reportes por prefijo */}
             <Route path="/reportes/detalle/:modulo" element={<Suspense fallback={<CargandoPagina />}><DetalleReporte /></Suspense>} />
             {items

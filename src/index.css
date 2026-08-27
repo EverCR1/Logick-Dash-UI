@@ -2941,8 +2941,11 @@ input.rango-date { width: 138px; }
 }
 
 /* Sucursal + Cliente */
+/* auto-fit en vez de dos columnas fijas: en ventas son dos campos y se ve igual,
+   pero en cotizaciones hay hasta cuatro y en un teléfono se apilan solos en vez
+   de quedar estrujados a la mitad del ancho. */
 .pos-meta {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;
   padding: 12px 14px; border-bottom: 1px solid var(--border);
 }
 .pos-meta-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
@@ -3028,6 +3031,83 @@ input.rango-date { width: 138px; }
 .tk-price .li-input { width: 100%; min-width: 0; text-align: left; }
 .tk-total { flex-shrink: 0; font-size: 13px; font-weight: 600; min-width: 58px; text-align: right; }
 .tk-costo { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; font-size: 11.5px; color: var(--text-faint); }
+
+/* Detalle de cotización: bloque de costos y margen.
+   Es información que NO va en el PDF del cliente, así que se marca como interna
+   y nace plegada — que aparezca sola en pantalla invita a enseñarla sin querer. */
+.cot-margen { border-top: 1px solid var(--border); padding-top: 12px; }
+
+.cot-margen-toggle {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg-elev-2);
+  color: var(--text-muted); font: inherit; font-size: 12.5px; cursor: pointer;
+}
+.cot-margen-toggle:hover { color: var(--text); border-color: var(--border-strong); }
+
+.cot-interno-tag {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 1px 6px; border-radius: 999px;
+  background: var(--warn-soft); color: var(--warn); font-size: 10px;
+}
+
+.cot-margen-cifras {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;
+  margin-top: 10px; padding: 12px; border-radius: 10px;
+  background: var(--bg-elev-2); border: 1px dashed var(--border-strong);
+}
+.cot-margen-cifras > div { display: flex; flex-direction: column; gap: 2px; font-size: 15px; font-weight: 600; }
+.cot-margen-cifras > div > .muted { font-size: 11px; font-weight: 500; }
+.cot-margen-nota { grid-column: 1 / -1; margin: 0; font-size: 11.5px; font-weight: 400; color: var(--warn); line-height: 1.5; }
+
+/* Columnas internas de la tabla: mismo aviso visual que el bloque */
+.tbl th.cot-interno, .tbl td.cot-interno { background: var(--warn-soft); }
+
+.cot-venta-link {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--violet-soft); background: var(--violet-soft);
+  color: var(--text); font: inherit; font-size: 12.5px; cursor: pointer;
+}
+.cot-venta-link:hover { border-color: var(--violet); }
+.cot-venta-link > svg:first-child { color: var(--violet); flex-shrink: 0; }
+
+/* El input de fecha trae un ancho intrínseco que desborda una celda estrecha */
+.pos-meta input[type="date"] { min-width: 0; }
+
+/* Aviso de diferencias al convertir una cotización en venta */
+.cot-diferencias {
+  margin-bottom: 14px; padding: 12px 14px;
+  background: var(--warn-soft); border: 1px solid var(--warn-soft);
+  border-left: 2px solid var(--warn); border-radius: 10px;
+  display: flex; flex-direction: column; gap: 9px;
+}
+.cot-dif-head { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--text); }
+.cot-dif-head > svg { color: var(--warn); flex-shrink: 0; margin-top: 2px; }
+
+.cot-dif-lista { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.cot-dif-lista li { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.cot-dif-nombre { font-size: 12.5px; font-weight: 500; }
+
+.cot-dif-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 999px;
+  background: var(--bg); border: 1px solid var(--border);
+  font-size: 11px; color: var(--text-muted);
+}
+.cot-dif-chip[data-tipo="precio_subio"] { color: var(--neg); border-color: var(--neg-soft); }
+.cot-dif-chip[data-tipo="precio_bajo"] { color: var(--pos); border-color: var(--pos-soft); }
+.cot-dif-chip[data-tipo="stock_insuficiente"],
+.cot-dif-chip[data-tipo="no_disponible"] { color: var(--warn); border-color: var(--warn-soft); }
+
+.cot-dif-pie { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+/* Cotizaciones: pedir más de lo que hay es válido, así que avisa sin alarmar */
+.tk-aviso-stock {
+  display: inline-flex; align-items: center; gap: 5px; align-self: flex-start;
+  padding: 2px 7px; border-radius: 6px;
+  background: var(--warn-soft); color: var(--warn); font-size: 11px;
+}
 
 /* Input genérico del ticket */
 .li-input {
@@ -3300,6 +3380,10 @@ input.rango-date { width: 138px; }
      arrastraría la paginación al desplazar la tabla. */
   .card:has(table):not(:has(.det-tabla)) { overflow-x: auto; }
   .tbl { min-width: 560px; }
+
+  /* Columnas prescindibles: se ocultan antes que obligar a desplazar la tabla
+     para llegar a lo que se consulta de verdad. */
+  .tbl .col-secundaria { display: none; }
 
   /* Modales ocupan casi toda la pantalla */
   .ui-modal { width: 96%; }

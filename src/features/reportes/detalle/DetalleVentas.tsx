@@ -116,7 +116,7 @@ export function DetalleVentas() {
                 { value: 'todos', label: 'Todos los ítems' },
                 { value: 'producto', label: 'Solo productos' },
                 { value: 'servicio', label: 'Solo servicios' },
-                { value: 'otro', label: 'Solo líneas manuales' },
+                { value: 'manual', label: 'Solo líneas manuales' },
               ]} />
             <Select value={filtros.sort ?? 'fecha_desc'} onValueChange={(v) => cambiar({ sort: v })} ariaLabel="Orden"
               options={[

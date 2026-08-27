@@ -48,6 +48,7 @@ export const NAV: NavEntry[] = [
     label: 'Operaciones',
     items: [
       { to: '/ventas', label: 'Ventas', icon: 'Cart', roles: GESTION_OPERACIONES },
+      { to: '/cotizaciones', label: 'Cotizaciones', icon: 'FileText', roles: GESTION_OPERACIONES },
       { to: '/creditos', label: 'Créditos', icon: 'Card', roles: GESTION_OPERACIONES },
     ],
   },
@@ -116,6 +117,7 @@ export const NAV_TITLES: Record<string, string> = {
   '/categorias': 'Categorías',
   '/servicios': 'Servicios',
   '/ventas': 'Ventas',
+  '/cotizaciones': 'Cotizaciones',
   '/creditos': 'Créditos',
   '/pedidos': 'Pedidos',
   '/resenas': 'Reseñas',
