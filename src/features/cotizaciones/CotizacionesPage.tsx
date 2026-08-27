@@ -190,13 +190,13 @@ export default function CotizacionesPage() {
 
       <ConfirmDialog
         open={!!aEliminar}
+        onOpenChange={(abierto) => !abierto && setAEliminar(null)}
         title="Eliminar cotización"
-        message={aEliminar ? `Se eliminará ${aEliminar.numero_cotizacion} y todas sus líneas. Esta acción no se puede deshacer.` : ''}
-        confirmText="Eliminar"
-        variant="danger"
+        description={aEliminar ? `Se eliminará ${aEliminar.numero_cotizacion} y todas sus líneas. Esta acción no se puede deshacer.` : ''}
+        confirmLabel="Eliminar"
+        danger
         loading={eliminar.isPending}
         onConfirm={() => aEliminar && eliminar.mutate(aEliminar.id)}
-        onClose={() => setAEliminar(null)}
       />
     </>
   )

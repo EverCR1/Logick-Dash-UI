@@ -107,7 +107,7 @@ export default function NuevaCotizacion() {
       custom: d.producto_id === null && d.servicio_id === null,
       costo: d.costo != null ? Number(d.costo) : undefined,
     })))
-    if (c.cliente) setCliente({ id: c.cliente.id, nombre: c.cliente.nombre, nit: c.cliente.nit })
+    if (c.cliente) setCliente(c.cliente)
     setNombreLibre(c.nombre_cliente ?? '')
     setSucursalId(c.sucursal_id ? String(c.sucursal_id) : 'default')
     setValidoHasta(c.valido_hasta)

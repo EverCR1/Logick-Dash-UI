@@ -1,4 +1,5 @@
 import type { Paginado } from './producto'
+import type { ClienteBusqueda } from './venta'
 
 /** Estados guardados. "vencida" no es uno: se deriva de valido_hasta. */
 export type CotizacionEstado = 'borrador' | 'enviada' | 'aceptada' | 'rechazada' | 'convertida'
@@ -58,7 +59,8 @@ export interface Cotizacion {
   total: number
   observaciones: string | null
   created_at: string
-  cliente: { id: number; nombre: string; nit: string | null } | null
+  /** El backend devuelve el modelo Cliente completo, no un resumen. */
+  cliente: ClienteBusqueda | null
   usuario: { id: number; nombres: string; apellidos: string } | null
   venta?: { id: number; numero_venta: string } | null
   detalles: CotizacionDetalle[]
@@ -128,7 +130,7 @@ export interface ParaVentaResponse {
     id: number
     numero_cotizacion: string
     cliente_id: number | null
-    cliente: { id: number; nombre: string; nit: string | null } | null
+    cliente: ClienteBusqueda | null
     nombre_cliente: string | null
     sucursal_id: number | null
     observaciones: string | null
