@@ -368,6 +368,28 @@ export default function ProductoFormPage() {
     queryFn: catalogosApi.proveedoresActivos,
     staleTime: 1000 * 60 * 10,
   })
+
+  /**
+   * Opciones del selector de proveedor.
+   *
+   * La lista solo trae los activos, así que un producto asignado a uno dado de
+   * baja aparecía con el campo en blanco —como si no tuviera proveedor— aunque
+   * el valor seguía ahí y se conservaba al guardar. Se añade el actual cuando
+   * falta, marcado, para que se vea lo que realmente tiene sin invitar a
+   * elegirlo en productos nuevos.
+   */
+  const opcionesProveedor = useMemo(() => {
+    const opciones = proveedores.map((p) => ({ value: String(p.id), label: p.nombre }))
+    const actual = form.proveedor_id
+
+    if (actual && !opciones.some((o) => o.value === actual)) {
+      opciones.unshift({
+        value: actual,
+        label: `${producto?.proveedor?.nombre ?? 'Proveedor'} (inactivo)`,
+      })
+    }
+    return opciones
+  }, [proveedores, form.proveedor_id, producto?.proveedor?.nombre])
   const { data: opcionesCat = [] } = useQuery({
     queryKey: ['categorias-opciones'],
     queryFn: catalogosApi.categorias,
@@ -851,7 +873,7 @@ export default function ProductoFormPage() {
                 value={form.proveedor_id}
                 onValueChange={(v) => set('proveedor_id', v)}
                 placeholder="Seleccionar…"
-                options={proveedores.map((p) => ({ value: String(p.id), label: p.nombre }))}
+                options={opcionesProveedor}
               />
             </div>
             <button type="button" className="btn" title="Crear proveedor" onClick={() => setCrearProv(true)}><Plus size={14} /></button>
