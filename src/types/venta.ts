@@ -1,3 +1,4 @@
+import type { CambioLinea } from './cotizacion'
 import type { OpcionCatalogo, Paginado } from './producto'
 
 export type VentaEstado = 'completada' | 'pendiente' | 'cancelada'
@@ -129,4 +130,49 @@ export interface StoreVentaPayload {
   sucursal_id?: number | null
   /** Origen: la cotización queda marcada como convertida al guardarse la venta. */
   cotizacion_id?: number | null
+}
+
+// ── Repetir una venta ────────────────────────────────────────────────────────
+
+/**
+ * Prellenado para volver a registrar una venta.
+ *
+ * A diferencia de una cotización, el precio que viaja en `precio_unitario` es el
+ * DE HOY, no el de aquella venta: una venta pasada no promete nada sobre una
+ * futura. `precio_anterior` viaja solo para poder mostrar la diferencia.
+ */
+export interface LineaParaRepetir {
+  tipo: 'producto' | 'servicio'
+  cantidad: number
+  descripcion: string
+  /** Precio vigente. En una línea manual, el de la venta original: no hay catálogo. */
+  precio_unitario: number
+  precio_anterior: number
+  costo: number | null
+  /** Siempre 0: un descuento fue una concesión de aquella venta, no de esta. */
+  descuento: number
+  /** El que llevaba la venta original, para poder volver a aplicarlo a mano. */
+  descuento_previo: number
+  producto_id: number | null
+  servicio_id: number | null
+  stock: number | null
+  disponible: boolean
+  cambios: CambioLinea[]
+}
+
+export interface ParaRepetirResponse {
+  success: boolean
+  venta: {
+    id: number
+    numero_venta: string
+    estado: VentaEstado
+    cliente_id: number | null
+    cliente: ClienteBusqueda | null
+    sucursal_id: number | null
+    metodo_pago: MetodoPago
+    observaciones: string | null
+    created_at: string
+  }
+  items: LineaParaRepetir[]
+  avisos: { precio: number; stock: number; no_disponible: number }
 }

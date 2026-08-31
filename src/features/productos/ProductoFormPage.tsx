@@ -21,6 +21,7 @@ import { ImagenesVariante, IMAGENES_VACIAS, type ImagenesDeVariante } from './va
 import { SubidaImagenes, type TrabajoImagen } from './variantes/SubidaImagenes'
 import { combinaciones, esEjeColor, nombreDeCombinacion, repartir, skusDeCombinaciones, type Eje } from './variantes/combinaciones'
 import { productosApi, catalogosApi } from '@/lib/api'
+import { invalidarProductos } from '@/lib/cache'
 import { generarSkuDesdeNombre } from '@/lib/sku'
 import type { Producto, ProductoAtributo } from '@/types/producto'
 
@@ -568,7 +569,7 @@ export default function ProductoFormPage() {
           : creadas > 1 ? `${creadas} variantes creadas`
             : 'Producto creado',
       )
-      queryClient.invalidateQueries({ queryKey: ['productos'] })
+      invalidarProductos(queryClient)
       if (editar && producto) queryClient.invalidateQueries({ queryKey: ['producto-detalle', producto.id] })
       // Ya no hay borrador que proteger: desarma el aviso antes de navegar
       inicial.current = null

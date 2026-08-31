@@ -13,7 +13,9 @@ import { CrearClienteRapido } from './CrearClienteRapido'
 import { useAuth } from '@/lib/auth'
 import { ventasApi, catalogosApi, cotizacionesApi } from '@/lib/api'
 import { DiferenciasCotizacion } from '../cotizaciones/DiferenciasCotizacion'
+import { DiferenciasRepetir } from './DiferenciasRepetir'
 import { useDebounce, usePaginacionLocal, useAutoPageSize } from '@/lib/hooks'
+import { CATALOGO_POS, invalidarProductos } from '@/lib/cache'
 import { q } from '@/lib/format'
 import { METODO_LABEL } from './venta-estados'
 import type { ClienteBusqueda, MetodoPago, ResultadoBusqueda, VentaItemPayload } from '@/types/venta'
@@ -63,6 +65,9 @@ export default function NuevaVenta() {
   // Venta que nace de una cotización: /ventas/nueva?cotizacion=ID
   const [params] = useSearchParams()
   const cotizacionId = params.get('cotizacion') ? Number(params.get('cotizacion')) : null
+  // Venta que repite otra: /ventas/nueva?repetir=ID. A diferencia de la
+  // cotización no marca nada en el origen — es solo un prellenado.
+  const repetirId = params.get('repetir') ? Number(params.get('repetir')) : null
   const [avisoDif, setAvisoDif] = useState(true)
 
   const [vista, setVista] = useState<Vista>(() => (localStorage.getItem('ventas_nueva_vista') as Vista) || 'terminal')
@@ -129,11 +134,51 @@ export default function NuevaVenta() {
     if (desdeCotizacion.isError) toast.error('No se pudo cargar la cotización')
   }, [desdeCotizacion.isError])
 
+  // ── Precarga repitiendo otra venta ───────────────────────────────────────────
+  const desdeVenta = useQuery({
+    queryKey: ['venta-para-repetir', repetirId],
+    queryFn: () => ventasApi.paraRepetir(repetirId!),
+    enabled: repetirId !== null,
+    // Igual que con la cotización: una sola vez, para no pisar ajustes a mano.
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+  })
+
+  useEffect(() => {
+    const d = desdeVenta.data
+    if (!d) return
+    setCart(d.items.map((it) => ({
+      key: nuevaKey(),
+      tipo: it.tipo,
+      descripcion: it.descripcion,
+      // El precio de hoy, no el de aquella venta: no se le prometió nada al
+      // cliente. La diferencia se avisa arriba por si conviene ajustarla.
+      precio_unitario: Number(it.precio_unitario) || 0,
+      cantidad: it.cantidad,
+      descuento: 0,
+      producto_id: it.producto_id ?? undefined,
+      servicio_id: it.servicio_id ?? undefined,
+      stock: it.stock ?? undefined,
+      custom: it.producto_id == null && it.servicio_id == null,
+      costo: it.costo ?? undefined,
+    })))
+    if (d.venta.cliente) setCliente(d.venta.cliente)
+    if (d.venta.sucursal_id) setSucursalId(String(d.venta.sucursal_id))
+    if (d.venta.observaciones) setObservaciones(d.venta.observaciones)
+    // El método sí se hereda: es la forma de pago habitual de ese cliente, y
+    // cambiarlo cuesta un clic.
+    if (d.venta.metodo_pago) setMetodo(d.venta.metodo_pago)
+  }, [desdeVenta.data])
+
+  useEffect(() => {
+    if (desdeVenta.isError) toast.error('No se pudo cargar la venta a repetir')
+  }, [desdeVenta.isError])
+
   // ── Búsqueda vista Formulario (dropdown flotante) ────────────────────────────
   const habilitarBusqueda = queryDebounced.trim().length >= 1
   const mostrarResultados = query.trim().length >= 1
   const busqueda = useQuery({
-    queryKey: ['venta-buscar', tab, queryDebounced],
+    queryKey: [CATALOGO_POS, 'buscar', tab, queryDebounced],
     queryFn: () => tab === 'producto' ? ventasApi.buscarProductos(queryDebounced) : ventasApi.buscarServicios(queryDebounced),
     enabled: vista === 'formulario' && habilitarBusqueda,
     placeholderData: keepPreviousData,
@@ -144,13 +189,13 @@ export default function NuevaVenta() {
   // el filtro por pestaña (Todos/Productos/Servicios) es en cliente.
   const enTerminal = vista === 'terminal'
   const catProductos = useQuery({
-    queryKey: ['venta-cat-prod', queryDebounced],
+    queryKey: [CATALOGO_POS, 'productos', queryDebounced],
     queryFn: () => ventasApi.buscarProductos(queryDebounced, CATALOGO_LIMIT),
     enabled: enTerminal,
     placeholderData: keepPreviousData,
   })
   const catServicios = useQuery({
-    queryKey: ['venta-cat-serv', queryDebounced],
+    queryKey: [CATALOGO_POS, 'servicios', queryDebounced],
     queryFn: () => ventasApi.buscarServicios(queryDebounced, CATALOGO_LIMIT),
     enabled: enTerminal,
     placeholderData: keepPreviousData,
@@ -272,6 +317,9 @@ export default function NuevaVenta() {
       for (const key of [['ventas'], ['dashboard'], ['dashboard-serie'], ['rep-resumen'], ['rep-ganancias']]) {
         queryClient.invalidateQueries({ queryKey: key })
       }
+      // La venta acaba de descontar stock: el catálogo del POS quedó viejo y es
+      // justo lo primero que se vuelve a ver si se registra otra venta seguida.
+      invalidarProductos(queryClient)
       // La cotización acaba de quedar convertida
       if (cotizacionId) queryClient.invalidateQueries({ queryKey: ['cotizaciones'] })
       navigate('/ventas')
@@ -339,7 +387,11 @@ export default function NuevaVenta() {
       <div className="page-head" style={{ alignItems: 'center' }}>
         <button className="back-link" onClick={() => navigate('/ventas')}><ChevronsLeft /> Ventas</button>
         <div style={{ fontWeight: 600, fontSize: 16 }}>
-          {cotizacionId ? `Venta desde ${desdeCotizacion.data?.cotizacion.numero_cotizacion ?? 'cotización'}` : 'Nueva venta'}
+          {cotizacionId
+            ? `Venta desde ${desdeCotizacion.data?.cotizacion.numero_cotizacion ?? 'cotización'}`
+            : repetirId
+              ? `Repitiendo ${desdeVenta.data?.venta.numero_venta ?? 'venta'}`
+              : 'Nueva venta'}
         </div>
         <div className="pos-view-toggle" style={{ marginLeft: 'auto' }}>
           <button className="pos-view-btn" data-on={vista === 'formulario'} onClick={() => setVista('formulario')}>Formulario</button>
@@ -349,6 +401,9 @@ export default function NuevaVenta() {
 
       {avisoDif && desdeCotizacion.data && (
         <DiferenciasCotizacion datos={desdeCotizacion.data} onCerrar={() => setAvisoDif(false)} />
+      )}
+      {avisoDif && desdeVenta.data && (
+        <DiferenciasRepetir datos={desdeVenta.data} onCerrar={() => setAvisoDif(false)} />
       )}
 
       {vista === 'terminal' ? (

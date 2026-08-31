@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Loader2, Eye, Ban, X, List, LayoutGrid, SlidersHorizontal } from 'lucide-react'
+import { Loader2, Eye, Ban, Pencil, Copy, X, List, LayoutGrid, SlidersHorizontal } from 'lucide-react'
 import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
 import { KpiGrid } from '@/components/ui/KpiGrid'
@@ -13,9 +13,11 @@ import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
 import { RangoFechas } from '@/components/ui/RangoFechas'
 import { RangoNumerico } from '@/components/ui/RangoNumerico'
 import { DetalleVenta } from './DetalleVenta'
+import { CorregirVenta } from './CorregirVenta'
 import { ESTADO_VENTA, METODO_LABEL, METODO_TONE } from './venta-estados'
 import { ventasApi } from '@/lib/api'
 import { useDebounce, useAutoPageSize, vistaInicial } from '@/lib/hooks'
+import { invalidarProductos } from '@/lib/cache'
 import { q, fmtN, fmtFecha, fmtHora } from '@/lib/format'
 import type { Venta, VentaFiltros } from '@/types/venta'
 
@@ -51,6 +53,7 @@ export default function VentasPage() {
   const navigate = useNavigate()
   const [verId, setVerId] = useState<number | null>(null)
   const [aCancelar, setACancelar] = useState<Venta | null>(null)
+  const [aCorregir, setACorregir] = useState<Venta | null>(null)
 
   useEffect(() => { localStorage.setItem('ventas_vista', vista) }, [vista])
 
@@ -90,12 +93,22 @@ export default function VentasPage() {
 
   const cancelar = useMutation({
     mutationFn: (id: number) => ventasApi.cancelar(id),
-    onSuccess: () => {
-      toast.success('Venta cancelada'); setACancelar(null)
+    onSuccess: ({ abonado }) => {
+      // El crédito queda anulado, pero los abonos se conservan porque ese dinero
+      // sí entró: devolverlo o retenerlo es una decisión de quien cancela.
+      if (abonado > 0) {
+        toast.warning(`Venta cancelada. El cliente ya había abonado ${q(abonado)}: ese dinero sigue registrado como cobrado.`,
+          { duration: 8000 })
+      } else {
+        toast.success('Venta cancelada')
+      }
+      setACancelar(null)
       // Cancelar revierte stock y crédito → afecta ingreso/ganancia reconocidos
       for (const key of [['ventas'], ['dashboard'], ['dashboard-serie'], ['rep-resumen'], ['rep-ganancias'], ['creditos']]) {
         queryClient.invalidateQueries({ queryKey: key })
       }
+      // Cancelar devuelve las unidades al inventario
+      invalidarProductos(queryClient)
     },
     onError: () => toast.error('No se pudo cancelar la venta'),
   })
@@ -204,7 +217,9 @@ export default function VentasPage() {
         <>
           <div className="ccards" ref={cardsRef}>
             {ventas.map((v) => (
-              <VentaCard key={v.id} venta={v} onVer={() => setVerId(v.id)} onCancelar={() => setACancelar(v)} />
+              <VentaCard key={v.id} venta={v} onVer={() => setVerId(v.id)}
+                onRepetir={() => navigate(`/ventas/nueva?repetir=${v.id}`)}
+                onCorregir={() => setACorregir(v)} onCancelar={() => setACancelar(v)} />
             ))}
           </div>
           {meta && meta.last_page > 1 && <div className="card"><Pagination meta={meta} page={page} setPage={setPage} /></div>}
@@ -245,7 +260,9 @@ export default function VentasPage() {
                     </td>
                     <td><span className="badge" data-tone={badge.tone}><span className="b-dot" />{badge.label}</span></td>
                     <td onClick={(e) => e.stopPropagation()}>
-                      <VentaAcciones cancelada={v.estado === 'cancelada'} onVer={() => setVerId(v.id)} onCancelar={() => setACancelar(v)} />
+                      <VentaAcciones cancelada={v.estado === 'cancelada'} onVer={() => setVerId(v.id)}
+                        onRepetir={() => navigate(`/ventas/nueva?repetir=${v.id}`)}
+                        onCorregir={() => setACorregir(v)} onCancelar={() => setACancelar(v)} />
                     </td>
                   </tr>
                 )
@@ -257,6 +274,7 @@ export default function VentasPage() {
       )}
 
       <DetalleVenta open={verId !== null} onClose={cerrarDetalle} ventaId={verId} />
+      <CorregirVenta venta={aCorregir} onClose={() => setACorregir(null)} />
 
       <ConfirmDialog open={!!aCancelar} onOpenChange={(o) => !o && setACancelar(null)}
         title="Cancelar venta" description={aCancelar ? `¿Cancelar la venta ${aCancelar.numero_venta}? Se revertirá el stock y el crédito asociado si existe.` : ''}
@@ -268,10 +286,18 @@ export default function VentasPage() {
 
 // ── Acciones compartidas (tabla y card) ───────────────────────────────────────
 
-function VentaAcciones({ cancelada, onVer, onCancelar }: { cancelada: boolean; onVer: () => void; onCancelar: () => void }) {
+function VentaAcciones({ cancelada, onVer, onRepetir, onCorregir, onCancelar }: {
+  cancelada: boolean; onVer: () => void; onRepetir: () => void; onCorregir: () => void; onCancelar: () => void
+}) {
   return (
     <div className="row-actions">
       <button className="icon-action" data-variant="view" title="Ver detalle" onClick={onVer}><Eye /></button>
+      {/* Disponible también en canceladas: rehacer una es justo para lo que sirve */}
+      <button className="icon-action" data-variant="activate" title="Repetir esta venta" onClick={onRepetir}><Copy /></button>
+      {/* Solo cliente y observaciones: los importes de una venta emitida no se tocan */}
+      {!cancelada && (
+        <button className="icon-action" data-variant="edit" title="Corregir cliente u observaciones" onClick={onCorregir}><Pencil /></button>
+      )}
       {!cancelada && (
         <button className="icon-action" data-variant="delete" title="Cancelar venta" onClick={onCancelar}><Ban /></button>
       )}
@@ -281,7 +307,9 @@ function VentaAcciones({ cancelada, onVer, onCancelar }: { cancelada: boolean; o
 
 // ── Tarjeta de venta ──────────────────────────────────────────────────────────
 
-function VentaCard({ venta: v, onVer, onCancelar }: { venta: Venta; onVer: () => void; onCancelar: () => void }) {
+function VentaCard({ venta: v, onVer, onRepetir, onCorregir, onCancelar }: {
+  venta: Venta; onVer: () => void; onRepetir: () => void; onCorregir: () => void; onCancelar: () => void
+}) {
   const badge = ESTADO_VENTA[v.estado]
   const items = v.detalles ?? []
   return (
@@ -304,7 +332,8 @@ function VentaCard({ venta: v, onVer, onCancelar }: { venta: Venta; onVer: () =>
 
       <div className="rc-foot" onClick={(e) => e.stopPropagation()}>
         <span className="badge" data-tone={METODO_TONE[v.metodo_pago]}><span className="b-dot" />{METODO_LABEL[v.metodo_pago] ?? v.metodo_pago}</span>
-        <VentaAcciones cancelada={v.estado === 'cancelada'} onVer={onVer} onCancelar={onCancelar} />
+        <VentaAcciones cancelada={v.estado === 'cancelada'} onVer={onVer} onRepetir={onRepetir}
+          onCorregir={onCorregir} onCancelar={onCancelar} />
       </div>
     </div>
   )

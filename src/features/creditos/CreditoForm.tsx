@@ -22,10 +22,15 @@ export function CreditoForm({ open, onClose, credito }: { open: boolean; onClose
   // Venta de origen: opcional, pero es lo que permite atribuir el crédito a su
   // sucursal y a su cliente en los reportes.
   const [venta, setVenta] = useState<Venta | null>(null)
+  // Cliente del sistema. Es lo que hace que la deuda aparezca en su ficha
+  // aunque el crédito no venga de una venta; `nombre_cliente` sigue siendo el
+  // único dato de quien no está dado de alta.
+  const [clienteId, setClienteId] = useState<number | null>(null)
 
   useEffect(() => {
     if (!open) return
     setVenta(null)
+    setClienteId(credito?.cliente_id ?? null)
     setForm(credito ? {
       nombre_cliente: credito.nombre_cliente,
       capital: String(credito.capital),
@@ -46,10 +51,10 @@ export function CreditoForm({ open, onClose, credito }: { open: boolean; onClose
         producto_o_servicio_dado: form.producto_o_servicio_dado.trim() || null,
         fecha_credito: form.fecha_credito,
       }
-      if (editar) return creditosApi.actualizar(credito!.id, base)
+      if (editar) return creditosApi.actualizar(credito!.id, { ...base, cliente_id: clienteId })
       // En creación, capital_restante por defecto = capital (crédito sin abonos)
       const restante = form.capital_restante !== '' ? Number(form.capital_restante) : Number(form.capital)
-      return creditosApi.crear({ ...base, capital_restante: restante, venta_id: venta?.id ?? null })
+      return creditosApi.crear({ ...base, capital_restante: restante, venta_id: venta?.id ?? null, cliente_id: clienteId })
     },
     onSuccess: () => {
       toast.success(editar ? 'Crédito actualizado' : 'Crédito creado')
@@ -100,6 +105,8 @@ export function CreditoForm({ open, onClose, credito }: { open: boolean; onClose
                     capital: String(v.total),
                     fecha_credito: v.created_at.slice(0, 10),
                   }))
+                  // La venta ya sabe de quién es: se hereda para no volver a elegirlo
+                  setClienteId(v.cliente?.id ?? null)
                   setErrores({})
                 }
               }}
@@ -110,7 +117,22 @@ export function CreditoForm({ open, onClose, credito }: { open: boolean; onClose
             </span>
           </div>
         )}
-        <Campo label="Cliente" req error={errores.nombre_cliente} col2>
+        <div className="form-field col-2">
+          <label>Cliente registrado</label>
+          <SelectorCliente
+            clienteId={clienteId}
+            nombre={form.nombre_cliente}
+            onSelect={(c) => {
+              setClienteId(c?.id ?? null)
+              if (c) setForm((f) => ({ ...f, nombre_cliente: c.nombre }))
+            }}
+          />
+          <span className="form-hint">
+            Opcional. Ligarlo hace que esta deuda aparezca en la ficha del cliente y en el
+            reporte de saldos; si no está dado de alta, basta con escribir su nombre abajo.
+          </span>
+        </div>
+        <Campo label="Nombre en el crédito" req error={errores.nombre_cliente} col2>
           <input className="form-input" value={form.nombre_cliente} onChange={(e) => set('nombre_cliente', e.target.value)} aria-invalid={!!errores.nombre_cliente} />
         </Campo>
         <Campo label="Capital" req error={errores.capital}>
@@ -197,6 +219,63 @@ function SelectorVenta({ venta, onSelect }: { venta: Venta | null; onSelect: (v:
               <span className="muted" style={{ fontSize: 11.5 }}>
                 {v.cliente?.nombre ?? 'Consumidor final'} · {fmtFecha(v.created_at)} · {q(Number(v.total))}
               </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Elige a qué cliente del sistema pertenece la deuda. Sin esto, un crédito que
+ * no viene de una venta no aparecía en ninguna parte de la ficha del cliente,
+ * aunque el cliente existiera: el saldo se deducía rodeando por la venta.
+ */
+function SelectorCliente({ clienteId, nombre, onSelect }: {
+  clienteId: number | null
+  nombre: string
+  onSelect: (c: { id: number; nombre: string } | null) => void
+}) {
+  const [texto, setTexto] = useState('')
+  const reposado = useDebounce(texto)
+
+  const { data: resultados = [], isFetching } = useQuery({
+    queryKey: ['venta-clientes', reposado],
+    queryFn: () => ventasApi.buscarClientes(reposado),
+    enabled: reposado.trim().length >= 2 && !clienteId,
+  })
+
+  if (clienteId) {
+    return (
+      <div className="venta-elegida">
+        <strong style={{ minWidth: 0 }}>{nombre || `Cliente #${clienteId}`}</strong>
+        <button type="button" className="icon-btn" title="Desligar del cliente" onClick={() => onSelect(null)}>
+          <X size={14} />
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <div className="toolbar-search">
+        <Search size={15} />
+        <input placeholder="Buscar cliente por nombre, NIT o teléfono…" value={texto}
+          onChange={(e) => setTexto(e.target.value)} />
+        {isFetching && <Loader2 size={14} className="spin" style={{ color: 'var(--text-faint)' }} />}
+      </div>
+      {reposado.trim().length >= 2 && (
+        <div className="venta-resultados">
+          {resultados.length === 0 ? (
+            <div className="muted" style={{ padding: '8px 10px', fontSize: 12 }}>
+              {isFetching ? 'Buscando…' : 'Sin clientes que coincidan'}
+            </div>
+          ) : resultados.map((c) => (
+            <button key={c.id} type="button" className="venta-dropdown-item"
+              onClick={() => { onSelect({ id: c.id, nombre: c.nombre }); setTexto('') }}>
+              <span style={{ fontWeight: 500 }}>{c.nombre}</span>
+              <span className="muted" style={{ fontSize: 11.5 }}>{c.nit || 'C/F'}</span>
             </button>
           ))}
         </div>

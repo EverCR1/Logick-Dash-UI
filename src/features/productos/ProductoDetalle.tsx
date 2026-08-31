@@ -9,6 +9,7 @@ import {
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { productosApi } from '@/lib/api'
 import { q, fmtFecha } from '@/lib/format'
+import { invalidarProductos } from '@/lib/cache'
 import type { ImagenProducto, Producto } from '@/types/producto'
 
 function imagenPrincipal(p: Producto): ImagenProducto | null {
@@ -31,7 +32,7 @@ export default function ProductoDetalle() {
 
   const invalidar = () => {
     queryClient.invalidateQueries({ queryKey: ['producto', id] })
-    queryClient.invalidateQueries({ queryKey: ['productos'] })
+    invalidarProductos(queryClient)
   }
   const cambiarEstado = useMutation({
     mutationFn: (estado: 'activo' | 'inactivo') => productosApi.cambiarEstado(Number(id), estado),
@@ -40,7 +41,7 @@ export default function ProductoDetalle() {
   })
   const eliminar = useMutation({
     mutationFn: () => productosApi.eliminar(Number(id)),
-    onSuccess: () => { toast.success('Producto eliminado'); queryClient.invalidateQueries({ queryKey: ['productos'] }); navigate('/productos') },
+    onSuccess: () => { toast.success('Producto eliminado'); invalidarProductos(queryClient); navigate('/productos') },
     onError: () => toast.error('No se pudo eliminar el producto'),
   })
 

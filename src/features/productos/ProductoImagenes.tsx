@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Loader2, Star, Trash2, ImagePlus } from 'lucide-react'
 import { productosApi } from '@/lib/api'
+import { invalidarProductos } from '@/lib/cache'
 import type { ImagenProducto } from '@/types/producto'
 
 export function ProductoImagenes({ productoId, imagenes }: { productoId: number; imagenes: ImagenProducto[] }) {
@@ -12,7 +13,7 @@ export function ProductoImagenes({ productoId, imagenes }: { productoId: number;
 
   useEffect(() => { setImgs(imagenes) }, [imagenes, productoId])
 
-  const invalidar = () => queryClient.invalidateQueries({ queryKey: ['productos'] })
+  const invalidar = () => invalidarProductos(queryClient)
 
   const subir = useMutation({
     mutationFn: (files: File[]) => productosApi.subirImagenes(productoId, files),

@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
-import { toast } from 'sonner'
-import { Loader2, Pencil, Trash2, Wallet, X, Eye, Receipt, List, LayoutGrid } from 'lucide-react'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import { Loader2, Pencil, HandCoins, Ban, Wallet, X, Eye, Receipt, List, LayoutGrid } from 'lucide-react'
 import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { KpiGrid } from '@/components/ui/KpiGrid'
 import { Pagination } from '@/components/ui/Pagination'
 import { BuscadorToolbar } from '@/components/ui/BuscadorToolbar'
 import { CreditoForm } from './CreditoForm'
 import { RegistrarPago } from './RegistrarPago'
+import { CerrarCredito, type ModoCierre } from './CerrarCredito'
 import { creditosApi } from '@/lib/api'
 import { useDebounce, useAutoPageSize, vistaInicial } from '@/lib/hooks'
 import { q, fmtN, fmtFecha } from '@/lib/format'
@@ -25,7 +24,14 @@ const ESTADO_BADGE: Record<CreditoEstado, { label: string; tone?: 'pos' | 'neg' 
   activo: { label: 'Activo', tone: 'warn' },
   abonado: { label: 'Abonado' },
   pagado: { label: 'Pagado', tone: 'pos' },
+  // Condonado en negativo: es dinero que se dejó de cobrar. Anulado es neutro,
+  // porque no hubo pérdida — el crédito nunca debió existir.
+  condonado: { label: 'Condonado', tone: 'neg' },
+  anulado: { label: 'Anulado' },
 }
+
+/** Mismo criterio que `Credito::ESTADOS_ABIERTOS` en la API. */
+const estaAbierto = (c: Credito) => c.estado === 'activo' || c.estado === 'abonado'
 
 function progresoPct(c: Credito): number {
   const cap = Number(c.capital) || 0
@@ -45,7 +51,6 @@ function ProgresoBar({ pct }: { pct: number }) {
 }
 
 export default function CreditosPage() {
-  const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const searchDebounced = useDebounce(search)
@@ -53,7 +58,7 @@ export default function CreditosPage() {
   const [sort, setSort] = useState<CreditoFiltros['sort']>('fecha_desc')
   const [vista, setVista] = useState<Vista>(() => vistaInicial('creditos_vista'))
   const [page, setPage] = useState(1)
-  const [aEliminar, setAEliminar] = useState<Credito | null>(null)
+  const [aCerrar, setACerrar] = useState<{ credito: Credito; modo: ModoCierre } | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editar, setEditar] = useState<Credito | null>(null)
   const [pagar, setPagar] = useState<Credito | null>(null)
@@ -76,17 +81,6 @@ export default function CreditosPage() {
     placeholderData: keepPreviousData,
   })
 
-  const eliminar = useMutation({
-    mutationFn: (id: number) => creditosApi.eliminar(id),
-    onSuccess: () => {
-      toast.success('Crédito eliminado'); setAEliminar(null)
-      for (const key of [['creditos'], ['dashboard'], ['dashboard-serie'], ['ventas'], ['rep-resumen'], ['rep-ganancias']]) {
-        queryClient.invalidateQueries({ queryKey: key })
-      }
-    },
-    onError: () => toast.error('No se pudo eliminar el crédito'),
-  })
-
   const creditos = data?.creditos.data ?? []
   const stats = data?.estadisticas
   const meta = data?.creditos
@@ -106,10 +100,12 @@ export default function CreditosPage() {
       {stats && (
         <KpiGrid items={[
           { label: 'Total', value: fmtN(stats.total_creditos), icon: I.Card, tone: 'accent', sub: 'créditos', onClick: () => { setEstado('todos'); setPage(1) }, activo: estado === 'todos' },
-          { label: 'Activos', value: fmtN(stats.activos), icon: I.Clock, tone: 'warn', sub: 'en curso', onClick: () => { setEstado(estado === 'activo' ? 'todos' : 'activo'); setPage(1) }, activo: estado === 'activo' },
-          { label: 'Abonados', value: fmtN(stats.abonados), icon: I.Wallet, tone: 'info', sub: 'con abonos', onClick: () => { setEstado(estado === 'abonado' ? 'todos' : 'abonado'); setPage(1) }, activo: estado === 'abonado' },
+          { label: 'Activos', value: fmtN(stats.activos), icon: I.Clock, tone: 'warn', sub: 'sin liquidar', onClick: () => { setEstado(estado === 'activo' ? 'todos' : 'activo'); setPage(1) }, activo: estado === 'activo' },
+          /* Abonados está contenido en Activos: un crédito con abonos sigue por
+             cobrar. Por eso estas tarjetas ya no suman el Total. */
+          { label: 'Abonados', value: fmtN(stats.abonados), icon: I.Wallet, tone: 'info', sub: 'de ellos, con abonos', onClick: () => { setEstado(estado === 'abonado' ? 'todos' : 'abonado'); setPage(1) }, activo: estado === 'abonado' },
           { label: 'Pagados', value: fmtN(stats.pagados), icon: I.CheckCircle, tone: 'pos', sub: 'liquidados', onClick: () => { setEstado(estado === 'pagado' ? 'todos' : 'pagado'); setPage(1) }, activo: estado === 'pagado' },
-          { label: 'Pendiente por cobrar', value: fmtN(Number(stats.capital_pendiente_activos) + Number(stats.capital_pendiente_abonados)), currency: 'Q', icon: I.Cash, tone: 'neg', sub: 'capital pendiente' },
+          { label: 'Pendiente por cobrar', value: fmtN(Number(stats.capital_pendiente)), currency: 'Q', icon: I.Cash, tone: 'neg', sub: 'capital pendiente' },
           { label: 'Recuperado', value: fmtN(stats.total_recuperado), currency: 'Q', icon: I.Trophy, tone: 'pos', sub: 'cobrado' },
         ]} />
       )}
@@ -150,7 +146,9 @@ export default function CreditosPage() {
             {creditos.map((c) => (
               <CreditoCard key={c.id} credito={c}
                 onVer={() => navigate(`/creditos/${c.id}`)} onPagar={() => setPagar(c)}
-                onEditar={() => abrirEditar(c)} onEliminar={() => setAEliminar(c)} />
+                onEditar={() => abrirEditar(c)}
+                onCondonar={() => setACerrar({ credito: c, modo: 'condonar' })}
+                onAnular={() => setACerrar({ credito: c, modo: 'anular' })} />
             ))}
           </div>
           {meta && meta.last_page > 1 && <div className="card"><Pagination meta={meta} page={page} setPage={setPage} /></div>}
@@ -172,7 +170,7 @@ export default function CreditosPage() {
               {creditos.map((c, i) => {
                 const badge = ESTADO_BADGE[c.estado]
                 const pct = progresoPct(c)
-                const pagado = c.estado === 'pagado'
+                const abierto = estaAbierto(c)
                 const concepto = c.producto_o_servicio_dado || (c.venta_id ? `Venta #${c.venta_id}` : null)
                 return (
                   <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/creditos/${c.id}`)}>
@@ -188,12 +186,15 @@ export default function CreditosPage() {
                       )}
                     </td>
                     <td className="num tnum">{q(c.capital)}</td>
-                    <td className="num tnum" style={{ fontWeight: 600, color: pagado ? 'var(--text-muted)' : undefined }}>{q(c.capital_restante)}</td>
+                    <td className="num tnum" style={{ fontWeight: 600, color: abierto ? undefined : 'var(--text-muted)' }}>{q(c.capital_restante)}</td>
                     <td><ProgresoBar pct={pct} /></td>
                     <td className="muted" style={{ fontSize: 12 }}>{fmtFecha(c.fecha_credito)}</td>
                     <td><span className="badge" data-tone={badge.tone}><span className="b-dot" />{badge.label}</span></td>
                     <td onClick={(e) => e.stopPropagation()}>
-                      <CreditoAcciones pagado={pagado} onVer={() => navigate(`/creditos/${c.id}`)} onPagar={() => setPagar(c)} onEditar={() => abrirEditar(c)} onEliminar={() => setAEliminar(c)} />
+                      <CreditoAcciones abierto={estaAbierto(c)} onVer={() => navigate(`/creditos/${c.id}`)}
+                        onPagar={() => setPagar(c)} onEditar={() => abrirEditar(c)}
+                        onCondonar={() => setACerrar({ credito: c, modo: 'condonar' })}
+                        onAnular={() => setACerrar({ credito: c, modo: 'anular' })} />
                     </td>
                   </tr>
                 )
@@ -207,39 +208,44 @@ export default function CreditosPage() {
       <CreditoForm open={formOpen} onClose={() => setFormOpen(false)} credito={editar} />
       <RegistrarPago open={!!pagar} onClose={() => setPagar(null)} credito={pagar} />
 
-      <ConfirmDialog open={!!aEliminar} onOpenChange={(o) => !o && setAEliminar(null)}
-        title="Eliminar crédito" description={aEliminar ? `¿Eliminar el crédito de "${aEliminar.nombre_cliente}"? Se borrarán también sus pagos.` : ''}
-        confirmLabel="Eliminar" danger loading={eliminar.isPending}
-        onConfirm={() => aEliminar && eliminar.mutate(aEliminar.id)} />
+      <CerrarCredito credito={aCerrar?.credito ?? null} modo={aCerrar?.modo ?? 'condonar'}
+        onClose={() => setACerrar(null)} />
     </>
   )
 }
 
 // ── Acciones compartidas (tabla y card) ───────────────────────────────────────
 
-function CreditoAcciones({ pagado, onVer, onPagar, onEditar, onEliminar }: {
-  pagado: boolean; onVer: () => void; onPagar: () => void; onEditar: () => void; onEliminar: () => void
+/**
+ * Un crédito cerrado no admite abonos ni cierres: solo se consulta. Condonar y
+ * anular sustituyen al viejo botón de eliminar, que borraba también los abonos.
+ */
+function CreditoAcciones({ abierto, onVer, onPagar, onEditar, onCondonar, onAnular }: {
+  abierto: boolean; onVer: () => void; onPagar: () => void; onEditar: () => void
+  onCondonar: () => void; onAnular: () => void
 }) {
   return (
     <div className="row-actions">
       <button className="icon-action" data-variant="view" title="Ver detalle" onClick={onVer}><Eye /></button>
-      {!pagado && (
+      {abierto && <>
         <button className="icon-action" data-variant="activate" title="Registrar pago" onClick={onPagar}><Wallet /></button>
-      )}
-      <button className="icon-action" data-variant="edit" title="Editar" onClick={onEditar}><Pencil /></button>
-      <button className="icon-action" data-variant="delete" title="Eliminar" onClick={onEliminar}><Trash2 /></button>
+        <button className="icon-action" data-variant="edit" title="Editar" onClick={onEditar}><Pencil /></button>
+        <button className="icon-action" data-variant="edit" title="Condonar el saldo" onClick={onCondonar}><HandCoins /></button>
+        <button className="icon-action" data-variant="delete" title="Anular crédito" onClick={onAnular}><Ban /></button>
+      </>}
     </div>
   )
 }
 
 // ── Tarjeta de crédito ────────────────────────────────────────────────────────
 
-function CreditoCard({ credito: c, onVer, onPagar, onEditar, onEliminar }: {
-  credito: Credito; onVer: () => void; onPagar: () => void; onEditar: () => void; onEliminar: () => void
+function CreditoCard({ credito: c, onVer, onPagar, onEditar, onCondonar, onAnular }: {
+  credito: Credito; onVer: () => void; onPagar: () => void; onEditar: () => void
+  onCondonar: () => void; onAnular: () => void
 }) {
   const badge = ESTADO_BADGE[c.estado]
   const pct = progresoPct(c)
-  const pagado = c.estado === 'pagado'
+  const abierto = estaAbierto(c)
   const concepto = c.producto_o_servicio_dado || (c.venta_id ? `Venta #${c.venta_id}` : null)
   return (
     <div className="ccard" onClick={onVer}>
@@ -259,14 +265,15 @@ function CreditoCard({ credito: c, onVer, onPagar, onEditar, onEliminar }: {
 
       <div className="rc-body">
         <div className="rc-line"><span className="lbl">Capital</span><span className="val tnum">{q(c.capital)}</span></div>
-        <div className="rc-line"><span className="lbl">Restante</span><span className="val tnum" style={{ color: pagado ? 'var(--text-muted)' : undefined }}>{q(c.capital_restante)}</span></div>
+        <div className="rc-line"><span className="lbl">Restante</span><span className="val tnum" style={{ color: abierto ? undefined : 'var(--text-muted)' }}>{q(c.capital_restante)}</span></div>
         <ProgresoBar pct={pct} />
         <div className="rc-line"><span className="lbl">Fecha</span><span className="val">{fmtFecha(c.fecha_credito)}</span></div>
       </div>
 
       <div className="rc-foot" onClick={(e) => e.stopPropagation()}>
         <span className="rc-who">{pct}% pagado</span>
-        <CreditoAcciones pagado={pagado} onVer={onVer} onPagar={onPagar} onEditar={onEditar} onEliminar={onEliminar} />
+        <CreditoAcciones abierto={abierto} onVer={onVer} onPagar={onPagar} onEditar={onEditar}
+          onCondonar={onCondonar} onAnular={onAnular} />
       </div>
     </div>
   )

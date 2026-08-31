@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Loader2, Minus, Plus } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { productosApi } from '@/lib/api'
+import { invalidarProductos } from '@/lib/cache'
 import type { Producto } from '@/types/producto'
 
 export function AjustarStock({ open, onClose, producto }: {
@@ -18,7 +19,7 @@ export function AjustarStock({ open, onClose, producto }: {
     mutationFn: () => productosApi.ajustarStock(producto!.id, valor),
     onSuccess: () => {
       toast.success('Stock actualizado')
-      queryClient.invalidateQueries({ queryKey: ['productos'] })
+      invalidarProductos(queryClient)
       onClose()
     },
     onError: () => toast.error('No se pudo actualizar el stock'),

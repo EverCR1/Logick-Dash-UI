@@ -14,6 +14,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { AjustarStock } from './AjustarStock'
 import { productosApi, catalogosApi } from '@/lib/api'
 import { useAutoPageSize } from '@/lib/hooks'
+import { invalidarProductos } from '@/lib/cache'
 import { q } from '@/lib/format'
 import type { Producto, ProductoFiltros } from '@/types/producto'
 
@@ -95,7 +96,7 @@ export default function ProductosPage() {
     onSuccess: () => {
       toast.success('Producto eliminado')
       setAEliminar(null)
-      queryClient.invalidateQueries({ queryKey: ['productos'] })
+      invalidarProductos(queryClient)
     },
     onError: () => toast.error('No se pudo eliminar el producto'),
   })
@@ -105,7 +106,7 @@ export default function ProductosPage() {
       productosApi.cambiarEstado(id, estado),
     onSuccess: () => {
       toast.success('Estado actualizado')
-      queryClient.invalidateQueries({ queryKey: ['productos'] })
+      invalidarProductos(queryClient)
     },
     onError: () => toast.error('No se pudo cambiar el estado'),
   })

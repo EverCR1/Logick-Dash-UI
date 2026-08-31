@@ -1,49 +1,39 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
+import { useQuery } from '@tanstack/react-query'
 import {
-  Loader2, ChevronsLeft, Pencil, Trash2, Wallet, Receipt, CalendarDays, Clock,
+  Loader2, ChevronsLeft, Pencil, Ban, Undo2, Wallet, Receipt, CalendarDays, Clock,
   RefreshCw, AlertCircle, CheckCircle, Coins, HandCoins, FileText,
 } from 'lucide-react'
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { CreditoForm } from './CreditoForm'
 import { RegistrarPago } from './RegistrarPago'
+import { CerrarCredito, type ModoCierre } from './CerrarCredito'
+import { RevertirPago } from './RevertirPago'
 import { creditosApi } from '@/lib/api'
 import { q, fmtN, fmtFecha } from '@/lib/format'
-import type { CreditoEstado } from '@/types/credito'
+import type { CreditoEstado, PagoCredito } from '@/types/credito'
 import { inicialesNombre } from '@/lib/text'
 
 const ESTADO_BADGE: Record<CreditoEstado, { label: string; tone?: 'pos' | 'neg' | 'warn' }> = {
   activo: { label: 'Activo', tone: 'warn' },
   abonado: { label: 'Abonado' },
   pagado: { label: 'Pagado', tone: 'pos' },
+  condonado: { label: 'Condonado', tone: 'neg' },
+  anulado: { label: 'Anulado' },
 }
 
 export default function CreditoDetalle() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
   const [editar, setEditar] = useState(false)
   const [pagar, setPagar] = useState(false)
-  const [confirmarEliminar, setConfirmarEliminar] = useState(false)
+  const [cerrar, setCerrar] = useState<ModoCierre | null>(null)
+  const [revertir, setRevertir] = useState<PagoCredito | null>(null)
 
   const { data: credito, isLoading, isError, refetch } = useQuery({
     queryKey: ['credito', id],
     queryFn: () => creditosApi.obtener(Number(id)),
     enabled: !!id,
-  })
-
-  const eliminar = useMutation({
-    mutationFn: () => creditosApi.eliminar(Number(id)),
-    onSuccess: () => {
-      toast.success('Crédito eliminado')
-      for (const key of [['creditos'], ['dashboard'], ['dashboard-serie'], ['ventas'], ['rep-resumen'], ['rep-ganancias']]) {
-        queryClient.invalidateQueries({ queryKey: key })
-      }
-      navigate('/creditos')
-    },
-    onError: () => toast.error('No se pudo eliminar el crédito'),
   })
 
   if (isLoading) {
@@ -121,17 +111,35 @@ export default function CreditoDetalle() {
             <div className="card-header"><div className="card-title"><HandCoins size={15} style={{ color: 'var(--text-muted)' }} />Historial de pagos</div></div>
             {credito.pagos.length > 0 ? (
               <table className="tbl">
-                <thead><tr><th className="num" style={{ width: 48 }}>No.</th><th>Fecha</th><th>Tipo</th><th className="num">Monto</th><th>Observaciones</th></tr></thead>
+                <thead><tr><th className="num" style={{ width: 48 }}>No.</th><th>Fecha</th><th>Tipo</th><th className="num">Monto</th><th>Observaciones</th><th style={{ width: 44 }}></th></tr></thead>
                 <tbody>
-                  {credito.pagos.map((p, i) => (
-                    <tr key={p.id}>
-                      <td className="num muted tnum">{i + 1}</td>
-                      <td className="muted" style={{ fontSize: 12 }}>{fmtFecha(p.fecha_pago)}</td>
-                      <td><span className="badge" data-tone={p.tipo === 'pago_total' ? 'pos' : undefined}><span className="b-dot" />{p.tipo === 'pago_total' ? 'Pago total' : 'Abono'}</span></td>
-                      <td className="num tnum" style={{ fontWeight: 600 }}>{q(p.monto)}</td>
-                      <td className="muted" style={{ fontSize: 12 }}>{p.observaciones || '—'}</td>
-                    </tr>
-                  ))}
+                  {credito.pagos.map((p, i) => {
+                    const revertido = credito.pagos.some((o) => o.revierte_pago_id === p.id)
+                    const esReversion = p.tipo === 'reversion'
+                    return (
+                      <tr key={p.id} style={{ opacity: revertido ? 0.55 : 1 }}>
+                        <td className="num muted tnum">{i + 1}</td>
+                        <td className="muted" style={{ fontSize: 12 }}>{fmtFecha(p.fecha_pago)}</td>
+                        <td>
+                          <span className="badge" data-tone={esReversion ? 'neg' : p.tipo === 'pago_total' ? 'pos' : undefined}>
+                            <span className="b-dot" />
+                            {esReversion ? 'Reversión' : p.tipo === 'pago_total' ? 'Pago total' : 'Abono'}
+                          </span>
+                        </td>
+                        <td className="num tnum" style={{ fontWeight: 600, color: esReversion ? 'var(--neg)' : undefined }}>
+                          {q(p.monto)}
+                        </td>
+                        <td className="muted" style={{ fontSize: 12 }}>{p.observaciones || '—'}</td>
+                        <td>
+                          {/* Una reversión no se revierte, y un abono ya revertido tampoco */}
+                          {!esReversion && !revertido && (
+                            <button className="icon-action" data-variant="delete" title="Revertir este abono"
+                              onClick={() => setRevertir(p)}><Undo2 /></button>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             ) : (
@@ -156,23 +164,28 @@ export default function CreditoDetalle() {
             </div>
           </div>
 
-          <div className="card">
-            <div className="card-header"><div className="card-title"><AlertCircle size={15} style={{ color: 'var(--neg)' }} />Zona de riesgo</div></div>
-            <div className="action-list">
-              <button className="action-btn" data-variant="danger" onClick={() => setConfirmarEliminar(true)}><Trash2 /> Eliminar crédito</button>
-              <div style={{ fontSize: 11.5, color: 'var(--text-faint)', padding: '0 2px', lineHeight: 1.5 }}>
-                Se eliminarán también todos los pagos registrados.
+          {!liquidado && (
+            <div className="card">
+              <div className="card-header"><div className="card-title"><AlertCircle size={15} style={{ color: 'var(--neg)' }} />Cerrar el crédito</div></div>
+              <div className="action-list">
+                <button className="action-btn" onClick={() => setCerrar('condonar')}><HandCoins /> Condonar el saldo</button>
+                <button className="action-btn" data-variant="danger" onClick={() => setCerrar('anular')}><Ban /> Anular crédito</button>
+                <div style={{ fontSize: 11.5, color: 'var(--text-faint)', padding: '0 2px', lineHeight: 1.5 }}>
+                  Condonar es decidir no cobrar el saldo: cuenta como pérdida. Anular es
+                  corregir un crédito que no debió existir. En ambos casos los abonos ya
+                  registrados se conservan.
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
       <CreditoForm open={editar} onClose={() => setEditar(false)} credito={credito} />
       <RegistrarPago open={pagar} onClose={() => setPagar(false)} credito={credito} />
-      <ConfirmDialog open={confirmarEliminar} onOpenChange={setConfirmarEliminar}
-        title="Eliminar crédito" description={`¿Eliminar el crédito de "${credito.nombre_cliente}"? Se borrarán también sus pagos.`}
-        confirmLabel="Eliminar" danger loading={eliminar.isPending} onConfirm={() => eliminar.mutate()} />
+      <CerrarCredito credito={cerrar ? credito : null} modo={cerrar ?? 'condonar'}
+        onClose={() => setCerrar(null)} />
+      <RevertirPago creditoId={credito.id} pago={revertir} onClose={() => setRevertir(null)} />
     </>
   )
 }

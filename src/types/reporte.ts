@@ -126,7 +126,8 @@ export interface GananciasCatalogos {
 
 /** Línea de una venta, con la fracción ya aplicada si viene de un abono. */
 export interface GananciaLinea {
-  detalle_id: number
+  /** Nulo en el cobro de un crédito sin venta: no hay línea de venta detrás. */
+  detalle_id: number | null
   tipo: string
   producto_id: number | null
   servicio_id: number | null

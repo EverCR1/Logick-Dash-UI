@@ -7,6 +7,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
 import { pedidosTiendaApi } from '@/lib/api'
 import { q, fmtFecha } from '@/lib/format'
+import { invalidarProductos } from '@/lib/cache'
 import { ESTADO_PEDIDO, ESTADO_OPCIONES } from './pedido-estados'
 import type { PedidoEstado } from '@/types/pedido'
 
@@ -28,6 +29,8 @@ export function DetallePedido({ open, onClose, pedidoId }: { open: boolean; onCl
       toast.success('Estado actualizado')
       queryClient.invalidateQueries({ queryKey: ['pedidos-tienda'] })
       queryClient.invalidateQueries({ queryKey: ['pedido-tienda', pedidoId] })
+      // Cancelar o reactivar un pedido devuelve o vuelve a tomar stock
+      invalidarProductos(queryClient)
     },
     onError: (err) => {
       if (isAxiosError(err) && err.response?.status === 422) toast.error(err.response.data?.message ?? 'No se pudo cambiar el estado')

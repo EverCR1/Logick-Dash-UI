@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Loader2, Link2, Link2Off, Search } from 'lucide-react'
 import { productosApi } from '@/lib/api'
 import { useDebounce } from '@/lib/hooks'
+import { invalidarProductos } from '@/lib/cache'
 import { q as money } from '@/lib/format'
 import { fusionarGrupos, hermanosDe } from './variantes-utils'
 import { ConfirmarVinculo, type ModoVinculo } from './ConfirmarVinculo'
@@ -35,7 +36,8 @@ export function VariantesVinculadas({ productoId, sku, grupo, onGrupoChange }: {
 
   const refrescar = () => {
     queryClient.invalidateQueries({ queryKey: ['variantes-grupo'] })
-    queryClient.invalidateQueries({ queryKey: ['productos'] })
+    // Vincular cambia el nombre_completo, que es como el POS nombra al producto
+    invalidarProductos(queryClient)
     queryClient.invalidateQueries({ queryKey: ['producto-detalle', productoId] })
   }
 
