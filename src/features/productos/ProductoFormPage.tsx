@@ -21,6 +21,7 @@ import { ImagenesVariante, IMAGENES_VACIAS, type ImagenesDeVariante } from './va
 import { SubidaImagenes, type TrabajoImagen } from './variantes/SubidaImagenes'
 import { combinaciones, esEjeColor, nombreDeCombinacion, repartir, skusDeCombinaciones, type Eje } from './variantes/combinaciones'
 import { productosApi, catalogosApi } from '@/lib/api'
+import type { VariantePayload } from '@/lib/api/productos'
 import { invalidarProductos } from '@/lib/cache'
 import { generarSkuDesdeNombre } from '@/lib/sku'
 import type { Producto, ProductoAtributo } from '@/types/producto'
@@ -154,6 +155,9 @@ export default function ProductoFormPage() {
       for (const combo of combos) {
         siguientes[combo.clave] = previas[combo.clave] ?? {
           incluida: true,
+          // Prellenado con el nombre base: es más fácil ajustar una parte que
+          // reescribirlo entero. Si se vacía, se vuelve a heredar.
+          nombre: formRef.current.nombre,
           sku: skus[combo.clave],
           codigo_barras: '',
           precio_compra: formRef.current.precio_compra,
@@ -166,6 +170,31 @@ export default function ProductoFormPage() {
       return siguientes
     })
   }, [combos, enMatriz])
+
+  /**
+   * Propaga el nombre base a las filas que aún lo tenían tal cual.
+   *
+   * Al venir prellenadas, corregir el nombre arriba dejaría las filas con el
+   * anterior. Se reconoce cuáles seguían heredándolo porque su valor coincide
+   * con el nombre base previo; las que el usuario cambió no se tocan.
+   */
+  const nombreBasePrevio = useRef(form.nombre)
+  useEffect(() => {
+    const anterior = nombreBasePrevio.current
+    nombreBasePrevio.current = form.nombre
+    if (!enMatriz || anterior === form.nombre) return
+
+    setFilas((previas) => {
+      let cambio = false
+      const siguientes: Record<string, FilaVariante> = {}
+      for (const [clave, fila] of Object.entries(previas)) {
+        const heredaba = fila.nombre === anterior
+        if (heredaba) cambio = true
+        siguientes[clave] = heredaba ? { ...fila, nombre: form.nombre } : fila
+      }
+      return cambio ? siguientes : previas
+    })
+  }, [form.nombre, enMatriz])
 
   /**
    * Prellena con los datos compartidos de la variante hermana al llegar desde
@@ -250,7 +279,7 @@ export default function ProductoFormPage() {
     .filter((c) => (imagenesPorVariante[c.clave]?.archivos.length ?? 0) > 0)
     .map((c) => ({
       clave: c.clave,
-      nombre: nombreDeCombinacion(form.nombre, c),
+      nombre: nombreDeCombinacion(filas[c.clave]?.nombre.trim() || form.nombre, c),
       cuantas: imagenesPorVariante[c.clave].archivos.length,
     }))
 
@@ -266,7 +295,10 @@ export default function ProductoFormPage() {
       const productoId = idPorClave.get(combo.clave)
       if (!imgs || !productoId) return []
 
-      const base = { clave: combo.clave, productoId, nombre: nombreDeCombinacion(form.nombre, combo) }
+      const base = {
+        clave: combo.clave, productoId,
+        nombre: nombreDeCombinacion(filas[combo.clave]?.nombre.trim() || form.nombre, combo),
+      }
 
       if (imgs.mismasQue) {
         const origen = idPorClave.get(imgs.mismasQue)
@@ -495,10 +527,15 @@ export default function ProductoFormPage() {
             estado: form.estado as 'activo' | 'inactivo',
             categorias,
           },
-          variantes: combosIncluidos.map((combo) => {
+          // Retorno anotado a propósito: sin el tipo aquí, TypeScript no revisa
+          // propiedades sobrantes en lo que devuelve un map, y un campo mal
+          // escrito viajaba al backend sin que el build dijera nada.
+          variantes: combosIncluidos.map((combo): VariantePayload => {
             const fila = filas[combo.clave]
             const { color, atributos } = repartir(combo.atributos)
             return {
+              // Vacío viaja como null: el backend hereda el de `base`
+              nombre: fila.nombre.trim() || null,
               sku: fila.sku.trim(),
               codigo_barras: fila.codigo_barras.trim() || null,
               // Sin atributo Color, todas heredan el color base del formulario
@@ -1082,7 +1119,10 @@ export default function ProductoFormPage() {
       <ImagenesVariante
         open
         onClose={() => setEditandoImagenes(null)}
-        nombre={nombreDeCombinacion(form.nombre, combos.find((c) => c.clave === editandoImagenes)!)}
+        nombre={nombreDeCombinacion(
+          filas[editandoImagenes]?.nombre.trim() || form.nombre,
+          combos.find((c) => c.clave === editandoImagenes)!,
+        )}
         valor={imagenesPorVariante[editandoImagenes] ?? IMAGENES_VACIAS}
         onChange={(valor) => setImagenesPorVariante((prev) => ({ ...prev, [editandoImagenes]: valor }))}
         fuentes={fuentesDeImagenes.filter((f) => f.clave !== editandoImagenes)}

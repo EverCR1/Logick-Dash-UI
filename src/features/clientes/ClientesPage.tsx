@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Loader2, Eye, Pencil, Trash2, Mail, Phone, Ban, CheckCircle2, X, List, LayoutGrid, User, Building2 } from 'lucide-react'
+import { Loader2, Eye, Pencil, Trash2, Mail, Phone, Ban, CheckCircle2, X, List, LayoutGrid, User, Building2, Wallet } from 'lucide-react'
 import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -14,6 +14,7 @@ import { ClienteForm } from './ClienteForm'
 import { clientesApi } from '@/lib/api'
 import { useDebounce, useAutoPageSize } from '@/lib/hooks'
 import { inicialesNombre } from '@/lib/text'
+import { q, fmtN } from '@/lib/format'
 import type { Cliente, ClienteFiltros, ClienteSort } from '@/types/cliente'
 
 const PER_PAGE = 15
@@ -29,6 +30,9 @@ export default function ClientesPage() {
   const [estado, setEstado] = useState('todos')
   const [tipo, setTipo] = useState('todos')
   const [sort, setSort] = useState<ClienteSort>('nombre_asc')
+  // Llega también por URL: la tarjeta del panel enlaza a ?con_saldo=1
+  const [params] = useSearchParams()
+  const [conSaldo, setConSaldo] = useState(params.get('con_saldo') === '1')
   const [vista, setVista] = useState<Vista>(() => (localStorage.getItem('clientes_vista') as Vista) || 'tabla')
   const [page, setPage] = useState(1)
 
@@ -46,6 +50,7 @@ export default function ClientesPage() {
     estado: estado !== 'todos' ? estado : undefined,
     tipo: tipo !== 'todos' ? tipo : undefined,
     sort: sort !== 'nombre_asc' ? sort : undefined,
+    con_saldo: conSaldo || undefined,
     page,
     per_page: perPage,
   }
@@ -80,9 +85,9 @@ export default function ClientesPage() {
   const meta = data?.clientes
   // El boton "Limpiar" solo aparece con 2+ filtros: con uno solo se quita
   // directamente desde su propio control (la X del buscador o volver a "todos").
-  const filtrosActivos = [!!search, estado !== 'todos', tipo !== 'todos', sort !== 'nombre_asc'].filter(Boolean).length
+  const filtrosActivos = [!!search, estado !== 'todos', tipo !== 'todos', sort !== 'nombre_asc', conSaldo].filter(Boolean).length
   const hayFiltros = filtrosActivos >= 2
-  const limpiarFiltros = () => { setSearch(''); setEstado('todos'); setTipo('todos'); setSort('nombre_asc'); setPage(1) }
+  const limpiarFiltros = () => { setSearch(''); setEstado('todos'); setTipo('todos'); setSort('nombre_asc'); setConSaldo(false); setPage(1) }
 
   const abrirNuevo = () => { setEditar(null); setFormOpen(true) }
   const abrirEditar = (c: Cliente) => { setEditar(c); setFormOpen(true) }
@@ -101,6 +106,11 @@ export default function ClientesPage() {
           { label: 'Inactivos', value: counts.inactivos, icon: Ban, tone: 'neg', sub: 'deshabilitados', onClick: () => { setEstado(estado === 'inactivo' ? 'todos' : 'inactivo'); setPage(1) }, activo: estado === 'inactivo' },
           { label: 'Naturales', value: counts.naturales, icon: User, tone: 'info', sub: 'personas', onClick: () => { setTipo(tipo === 'natural' ? 'todos' : 'natural'); setPage(1) }, activo: tipo === 'natural' },
           { label: 'Jurídicos', value: counts.juridicos, icon: Building2, tone: 'violet', sub: 'empresas', onClick: () => { setTipo(tipo === 'juridico' ? 'todos' : 'juridico'); setPage(1) }, activo: tipo === 'juridico' },
+          // Pasivo del negocio: dinero de clientes que está en la caja. La cifra
+          // es global, no del filtro, para que sea la misma que en el panel.
+          { label: 'Saldo a favor', value: `Q ${fmtN(counts.saldo_favor_total)}`, icon: Wallet, tone: 'warn',
+            sub: `${counts.clientes_con_saldo} cliente${counts.clientes_con_saldo === 1 ? '' : 's'}`,
+            onClick: () => { setConSaldo(!conSaldo); setPage(1) }, activo: conSaldo },
         ]} />
       )}
 
@@ -118,6 +128,7 @@ export default function ClientesPage() {
             { value: 'antiguos', label: 'Más antiguos' },
             { value: 'compras_desc', label: 'Más compras' },
             { value: 'monto_desc', label: 'Mayor monto comprado' },
+            { value: 'saldo_desc', label: 'Mayor saldo a favor' },
           ]} />
         {hayFiltros && <button className="btn" onClick={limpiarFiltros} title="Limpiar filtros"><X size={15} /> Limpiar</button>}
         <div className="view-toggle">
@@ -151,6 +162,7 @@ export default function ClientesPage() {
               <tr>
                 <th className="num" style={{ width: 48 }}>No.</th>
                 <th>Cliente</th><th>Contacto</th><th>Tipo</th><th>Estado</th>
+                <th className="num" style={{ width: 110 }}>Saldo a favor</th>
                 <th style={{ width: 140, textAlign: 'right' }}>Acciones</th>
               </tr>
             </thead>
@@ -179,6 +191,13 @@ export default function ClientesPage() {
                     </td>
                     <td><span className="badge" data-tone={c.tipo === 'juridico' ? 'info' : undefined}>{c.tipo === 'natural' ? 'Natural' : 'Jurídico'}</span></td>
                     <td><span className="badge" data-tone={activo ? 'pos' : undefined}><span className="b-dot" />{activo ? 'Activo' : 'Inactivo'}</span></td>
+                    {/* Solo con cifra cuando la hay: un guion es más legible que
+                        una columna de ceros en la mayoría de clientes. */}
+                    <td className="num tnum">
+                      {Number(c.saldo_favor ?? 0) > 0
+                        ? <span style={{ fontWeight: 600, color: 'var(--accent-text)' }}>{q(Number(c.saldo_favor))}</span>
+                        : <span className="muted">—</span>}
+                    </td>
                     <td onClick={(e) => e.stopPropagation()}>
                       <ClienteAcciones activo={activo} onVer={() => navigate(`/clientes/${c.id}`)} onEditar={() => abrirEditar(c)} onToggle={() => cambiarEstado.mutate(c.id)} onEliminar={() => setAEliminar(c)} />
                     </td>

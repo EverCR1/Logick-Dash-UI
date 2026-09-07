@@ -37,7 +37,9 @@ export default function Sidebar({ onToggle }: { onToggle: () => void }) {
       <nav className="sidebar-nav">
         {NAV.map((entry, i) => {
           if ('type' in entry) {
-            const items = entry.items.filter((it) => puedeVer(it, rol))
+            // `oculto` solo afecta al menú: la ruta y el control de rol siguen
+            // saliendo de la misma config, y la paleta de comandos sí los ofrece.
+            const items = entry.items.filter((it) => !it.oculto && puedeVer(it, rol))
             if (items.length === 0) return null
             return (
               <div key={i} className="nav-group">
@@ -48,7 +50,7 @@ export default function Sidebar({ onToggle }: { onToggle: () => void }) {
               </div>
             )
           }
-          return puedeVer(entry, rol) ? <NavItemLink key={entry.to} it={entry} /> : null
+          return !entry.oculto && puedeVer(entry, rol) ? <NavItemLink key={entry.to} it={entry} /> : null
         })}
       </nav>
       <div className="sidebar-footer">Logickem © 2026</div>

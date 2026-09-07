@@ -86,6 +86,8 @@ export default function NuevaVenta() {
   const [sucursalId, setSucursalId] = useState(() => usuario?.sucursal_id ? String(usuario.sucursal_id) : 'default')
   const [observaciones, setObservaciones] = useState('')
   const [crearCliente, setCrearCliente] = useState(false)
+  // Se apaga solo al cambiar de cliente: el saldo es de quien estaba antes
+  const [usarSaldo, setUsarSaldo] = useState(false)
   const [ticketAbierto, setTicketAbierto] = useState(false) // drawer del ticket en móvil
 
   const { data: sucursales = [] } = useQuery({
@@ -133,6 +135,10 @@ export default function NuevaVenta() {
   useEffect(() => {
     if (desdeCotizacion.isError) toast.error('No se pudo cargar la cotización')
   }, [desdeCotizacion.isError])
+
+  // El saldo es de un cliente concreto: al cambiarlo o quitarlo, la casilla se
+  // apaga sola para no aplicar el saldo de quien ya no está seleccionado.
+  useEffect(() => { setUsarSaldo(false) }, [cliente?.id])
 
   // ── Precarga repitiendo otra venta ───────────────────────────────────────────
   const desdeVenta = useQuery({
@@ -309,6 +315,8 @@ export default function NuevaVenta() {
         observaciones: observaciones.trim() || null,
         // El backend marca la cotización como convertida solo si la venta se guarda
         cotizacion_id: cotizacionId,
+        // El backend lo topa al total y valida que el saldo alcance
+        saldo_aplicado: usarSaldo && saldoAplicable > 0 ? saldoAplicable : null,
       })
     },
     onSuccess: (venta) => {
@@ -344,6 +352,31 @@ export default function NuevaVenta() {
   const resultados = busqueda.data ?? []
 
   // ── Bloques reutilizables ────────────────────────────────────────────────────
+  /**
+   * Saldo a favor del cliente elegido, si lo tiene.
+   *
+   * Se ofrece topado al total: aplicar más dejaría al cliente pagando de más.
+   * Retirar el resto es un reembolso desde su ficha, no parte de esta venta.
+   */
+  const saldoDisponible = Math.max(0, Number(cliente?.saldo_favor ?? 0))
+  const saldoAplicable = Math.min(saldoDisponible, totales.total)
+
+  const bloqueSaldo = saldoDisponible > 0 && (
+    <div className="venta-credito-aviso" style={{ display: 'grid', gap: 6 }}>
+      <label className="form-check">
+        <input type="checkbox" checked={usarSaldo} onChange={(e) => setUsarSaldo(e.target.checked)} />
+        Usar su saldo a favor ({q(saldoDisponible)})
+      </label>
+      {usarSaldo && (
+        <span className="muted" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
+          Se aplicarán {q(saldoAplicable)}
+          {saldoAplicable < totales.total && <> y quedan {q(totales.total - saldoAplicable)} por cobrar</>}
+          {saldoDisponible > totales.total && <>. Le sobrarán {q(saldoDisponible - totales.total)} a favor</>}.
+        </span>
+      )}
+    </div>
+  )
+
   const bloqueCliente = (
     cliente ? (
       <div className="venta-cliente-chip">
@@ -613,6 +646,10 @@ export default function NuevaVenta() {
                     </div>
                   )}
 
+                  {/* Debajo del método de pago: el saldo es una forma de cubrir
+                      parte del total, y aquí es donde se decide cómo se paga. */}
+                  {bloqueSaldo}
+
                   <textarea className="form-textarea" rows={2} value={observaciones} onChange={(e) => setObservaciones(e.target.value)} placeholder="Observaciones (opcional)…" />
 
                   <div className="sum-rows">
@@ -788,6 +825,7 @@ export default function NuevaVenta() {
                 <div className="resumen-total"><span>Total</span><span className="tnum">{q(totales.total)}</span></div>
                 <div className="resumen-row"><span className="muted">Método</span><span className="badge"><span className="b-dot" />{METODO_LABEL[metodo]}</span></div>
                 {metodo === 'credito' && <div className="muted" style={{ fontSize: 11, lineHeight: 1.5 }}>La venta quedará <strong>pendiente</strong> y se creará un crédito por el total.</div>}
+                {bloqueSaldo}
 
                 <button className="btn btn-primary" style={{ marginTop: 4, height: 42 }} onClick={submit} disabled={guardar.isPending || cart.length === 0}>
                   {guardar.isPending ? <Loader2 size={15} className="spin" /> : <ShoppingCart size={15} />} Registrar venta

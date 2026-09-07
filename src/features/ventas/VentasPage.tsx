@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Loader2, Eye, Ban, Pencil, Copy, X, List, LayoutGrid, SlidersHorizontal } from 'lucide-react'
+import { Loader2, Eye, Ban, Pencil, Copy, Undo2, X, List, LayoutGrid, SlidersHorizontal } from 'lucide-react'
 import { I } from '@/components/icons'
 import { Select } from '@/components/ui/Select'
 import { KpiGrid } from '@/components/ui/KpiGrid'
@@ -14,6 +14,8 @@ import { RangoFechas } from '@/components/ui/RangoFechas'
 import { RangoNumerico } from '@/components/ui/RangoNumerico'
 import { DetalleVenta } from './DetalleVenta'
 import { CorregirVenta } from './CorregirVenta'
+import { InsigniaDevuelta, InsigniaSaldo } from './InsigniaDevuelta'
+import { RegistrarDevolucion } from '../devoluciones/RegistrarDevolucion'
 import { ESTADO_VENTA, METODO_LABEL, METODO_TONE } from './venta-estados'
 import { ventasApi } from '@/lib/api'
 import { useDebounce, useAutoPageSize, vistaInicial } from '@/lib/hooks'
@@ -54,6 +56,9 @@ export default function VentasPage() {
   const [verId, setVerId] = useState<number | null>(null)
   const [aCancelar, setACancelar] = useState<Venta | null>(null)
   const [aCorregir, setACorregir] = useState<Venta | null>(null)
+  // No es un estado de la venta: se filtra por tener devoluciones
+  const [conDevoluciones, setConDevoluciones] = useState(false)
+  const [aDevolver, setADevolver] = useState<number | null>(null)
 
   useEffect(() => { localStorage.setItem('ventas_vista', vista) }, [vista])
 
@@ -82,6 +87,7 @@ export default function VentasPage() {
     fecha_fin: hasta || undefined,
     monto_min: montoMinDeb ? Number(montoMinDeb) : undefined,
     monto_max: montoMaxDeb ? Number(montoMaxDeb) : undefined,
+    con_devoluciones: conDevoluciones || undefined,
     sort, page, per_page: perPage,
   }
 
@@ -121,7 +127,7 @@ export default function VentasPage() {
   // Cuántos filtros del panel están activos: se muestra en el botón para que no
   // queden filtros aplicados fuera de la vista sin ninguna señal.
   const filtrosAvanzados = [
-    sucursal !== 'todos', vendedor !== 'todos', !!desde || !!hasta, !!montoMin || !!montoMax,
+    sucursal !== 'todos', vendedor !== 'todos', !!desde || !!hasta, !!montoMin || !!montoMax, conDevoluciones,
   ].filter(Boolean).length
 
   // El botón "Limpiar" solo aparece con 2+ filtros: con uno solo se quita
@@ -132,7 +138,7 @@ export default function VentasPage() {
   const limpiarFiltros = () => {
     setSearch(''); setEstado('todos'); setMetodo('todos'); setSort('fecha_desc')
     setSucursal('todos'); setVendedor('todos'); setDesde(''); setHasta('')
-    setMontoMin(''); setMontoMax(''); setPage(1)
+    setMontoMin(''); setMontoMax(''); setConDevoluciones(false); setPage(1)
   }
   const cambiarRango = (r: { desde: string; hasta: string }) => {
     setDesde(r.desde); setHasta(r.hasta); setPage(1)
@@ -141,7 +147,16 @@ export default function VentasPage() {
   return (
     <>
       <PageHeader title="Ventas" subtitle="Punto de venta y registro de ventas"
-        action={<button className="btn btn-primary" onClick={() => navigate('/ventas/nueva')}><I.Plus /> Nueva venta</button>} />
+        action={
+          <div style={{ display: 'flex', gap: 8 }}>
+            {/* Las devoluciones no tienen sitio propio en el menú: una devolución
+                siempre parte de una venta, así que se entra por aquí. */}
+            <button className="btn" onClick={() => navigate('/devoluciones')}>
+              <Undo2 size={15} /> Devoluciones
+            </button>
+            <button className="btn btn-primary" onClick={() => navigate('/ventas/nueva')}><I.Plus /> Nueva venta</button>
+          </div>
+        } />
 
       {stats && (
         <KpiGrid items={[
@@ -203,6 +218,11 @@ export default function VentasPage() {
           <RangoNumerico prefijo="Q" etiqueta="Monto" min={montoMin} max={montoMax}
             onChange={(r) => { setMontoMin(r.min); setMontoMax(r.max); setPage(1) }}
             onLimpiar={() => { setMontoMin(''); setMontoMax(''); setPage(1) }} />
+          <label className="switch-inline" title="Ventas de las que volvió mercadería">
+            <input type="checkbox" checked={conDevoluciones}
+              onChange={(e) => { setConDevoluciones(e.target.checked); setPage(1) }} />
+            <span>Con devoluciones</span>
+          </label>
         </div>
       )}
 
@@ -218,7 +238,7 @@ export default function VentasPage() {
           <div className="ccards" ref={cardsRef}>
             {ventas.map((v) => (
               <VentaCard key={v.id} venta={v} onVer={() => setVerId(v.id)}
-                onRepetir={() => navigate(`/ventas/nueva?repetir=${v.id}`)}
+                onRepetir={() => navigate(`/ventas/nueva?repetir=${v.id}`)} onDevolver={() => setADevolver(v.id)}
                 onCorregir={() => setACorregir(v)} onCancelar={() => setACancelar(v)} />
             ))}
           </div>
@@ -258,10 +278,18 @@ export default function VentasPage() {
                       <div style={{ fontSize: 12, fontWeight: 500 }}>{fmtFecha(v.created_at)}</div>
                       <div className="muted" style={{ fontSize: 11 }}>{fmtHora(v.created_at)}</div>
                     </td>
-                    <td><span className="badge" data-tone={badge.tone}><span className="b-dot" />{badge.label}</span></td>
+                    {/* En columna: apilada no ensancha la tabla, que ya tiene
+                        muchas columnas. */}
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
+                        <span className="badge" data-tone={badge.tone}><span className="b-dot" />{badge.label}</span>
+                        <InsigniaDevuelta venta={v} />
+                        <InsigniaSaldo venta={v} />
+                      </div>
+                    </td>
                     <td onClick={(e) => e.stopPropagation()}>
                       <VentaAcciones cancelada={v.estado === 'cancelada'} onVer={() => setVerId(v.id)}
-                        onRepetir={() => navigate(`/ventas/nueva?repetir=${v.id}`)}
+                        onRepetir={() => navigate(`/ventas/nueva?repetir=${v.id}`)} onDevolver={() => setADevolver(v.id)}
                         onCorregir={() => setACorregir(v)} onCancelar={() => setACancelar(v)} />
                     </td>
                   </tr>
@@ -275,6 +303,7 @@ export default function VentasPage() {
 
       <DetalleVenta open={verId !== null} onClose={cerrarDetalle} ventaId={verId} />
       <CorregirVenta venta={aCorregir} onClose={() => setACorregir(null)} />
+      <RegistrarDevolucion ventaId={aDevolver} onClose={() => setADevolver(null)} />
 
       <ConfirmDialog open={!!aCancelar} onOpenChange={(o) => !o && setACancelar(null)}
         title="Cancelar venta" description={aCancelar ? `¿Cancelar la venta ${aCancelar.numero_venta}? Se revertirá el stock y el crédito asociado si existe.` : ''}
@@ -286,14 +315,19 @@ export default function VentasPage() {
 
 // ── Acciones compartidas (tabla y card) ───────────────────────────────────────
 
-function VentaAcciones({ cancelada, onVer, onRepetir, onCorregir, onCancelar }: {
-  cancelada: boolean; onVer: () => void; onRepetir: () => void; onCorregir: () => void; onCancelar: () => void
+function VentaAcciones({ cancelada, onVer, onRepetir, onDevolver, onCorregir, onCancelar }: {
+  cancelada: boolean; onVer: () => void; onRepetir: () => void; onDevolver: () => void
+  onCorregir: () => void; onCancelar: () => void
 }) {
   return (
     <div className="row-actions">
       <button className="icon-action" data-variant="view" title="Ver detalle" onClick={onVer}><Eye /></button>
       {/* Disponible también en canceladas: rehacer una es justo para lo que sirve */}
       <button className="icon-action" data-variant="activate" title="Repetir esta venta" onClick={onRepetir}><Copy /></button>
+      {/* Una venta cancelada ya se revirtió entera: no hay nada que devolver */}
+      {!cancelada && (
+        <button className="icon-action" data-variant="edit" title="Registrar devolución" onClick={onDevolver}><Undo2 /></button>
+      )}
       {/* Solo cliente y observaciones: los importes de una venta emitida no se tocan */}
       {!cancelada && (
         <button className="icon-action" data-variant="edit" title="Corregir cliente u observaciones" onClick={onCorregir}><Pencil /></button>
@@ -307,8 +341,9 @@ function VentaAcciones({ cancelada, onVer, onRepetir, onCorregir, onCancelar }: 
 
 // ── Tarjeta de venta ──────────────────────────────────────────────────────────
 
-function VentaCard({ venta: v, onVer, onRepetir, onCorregir, onCancelar }: {
-  venta: Venta; onVer: () => void; onRepetir: () => void; onCorregir: () => void; onCancelar: () => void
+function VentaCard({ venta: v, onVer, onRepetir, onDevolver, onCorregir, onCancelar }: {
+  venta: Venta; onVer: () => void; onRepetir: () => void; onDevolver: () => void
+  onCorregir: () => void; onCancelar: () => void
 }) {
   const badge = ESTADO_VENTA[v.estado]
   const items = v.detalles ?? []
@@ -319,7 +354,11 @@ function VentaCard({ venta: v, onVer, onRepetir, onCorregir, onCancelar }: {
           <div className="rc-title">{v.numero_venta}</div>
           <div className="rc-sub">{v.cliente?.nombre ?? 'Consumidor final'}</div>
         </div>
-        <span className="badge" data-tone={badge.tone}><span className="b-dot" />{badge.label}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
+          <span className="badge" data-tone={badge.tone}><span className="b-dot" />{badge.label}</span>
+          <InsigniaDevuelta venta={v} />
+          <InsigniaSaldo venta={v} />
+        </div>
       </div>
 
       <div className="rc-body">
@@ -332,7 +371,7 @@ function VentaCard({ venta: v, onVer, onRepetir, onCorregir, onCancelar }: {
 
       <div className="rc-foot" onClick={(e) => e.stopPropagation()}>
         <span className="badge" data-tone={METODO_TONE[v.metodo_pago]}><span className="b-dot" />{METODO_LABEL[v.metodo_pago] ?? v.metodo_pago}</span>
-        <VentaAcciones cancelada={v.estado === 'cancelada'} onVer={onVer} onRepetir={onRepetir}
+        <VentaAcciones cancelada={v.estado === 'cancelada'} onVer={onVer} onRepetir={onRepetir} onDevolver={onDevolver}
           onCorregir={onCorregir} onCancelar={onCancelar} />
       </div>
     </div>

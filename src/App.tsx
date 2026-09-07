@@ -39,6 +39,7 @@ const PedidosPage = lazy(() => import('@/features/pedidos/PedidosPage'))
 const VentasPage = lazy(() => import('@/features/ventas/VentasPage'))
 const NuevaVenta = lazy(() => import('@/features/ventas/NuevaVenta'))
 const CotizacionesPage = lazy(() => import('@/features/cotizaciones/CotizacionesPage'))
+const DevolucionesPage = lazy(() => import('@/features/devoluciones/DevolucionesPage'))
 const NuevaCotizacion = lazy(() => import('@/features/cotizaciones/NuevaCotizacion'))
 
 // Aplana los items de navegación; el dashboard tiene su propia página, el resto
@@ -64,6 +65,7 @@ const PAGINAS: Record<string, React.ComponentType> = {
   '/pedidos': PedidosPage,
   '/ventas': VentasPage,
   '/cotizaciones': CotizacionesPage,
+  '/devoluciones': DevolucionesPage,
 }
 
 function CargandoPagina() {

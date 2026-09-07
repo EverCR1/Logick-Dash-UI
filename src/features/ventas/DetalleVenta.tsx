@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Loader2, Eye, Download, User, CalendarDays, CreditCard, FileText } from 'lucide-react'
+import { Loader2, Eye, Download, User, CalendarDays, CreditCard, FileText, Undo2, Wallet } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { ventasApi } from '@/lib/api'
 import { q, fmtFecha } from '@/lib/format'
@@ -43,6 +43,11 @@ export function DetalleVenta({ open, onClose, ventaId }: { open: boolean; onClos
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span className="badge" data-tone={badge?.tone}><span className="b-dot" />{badge?.label}</span>
             <span className="badge" data-tone={METODO_TONE[venta.metodo_pago]}><CreditCard size={11} /> {METODO_LABEL[venta.metodo_pago] ?? venta.metodo_pago}</span>
+            {/* Solo en pagos parciales: si el saldo cubrió todo, el método ya
+                dice "Saldo a favor". */}
+            {Number(venta.saldo_aplicado) > 0 && venta.metodo_pago !== 'saldo' && (
+              <span className="badge" data-tone="info"><Wallet size={11} /> {q(venta.saldo_aplicado)} de saldo</span>
+            )}
           </div>
 
           {/* Info */}
@@ -69,12 +74,75 @@ export function DetalleVenta({ open, onClose, ventaId }: { open: boolean; onClos
             </tbody>
           </table>
 
-          {/* Totales */}
+          {/* Totales. El total facturado no cambia al devolver; el neto se muestra
+              aparte para que se vea qué quedó realmente en manos del cliente. */}
           <div className="venta-totales">
             <div className="resumen-row"><span className="muted">Subtotal</span><span className="tnum">{q(venta.subtotal)}</span></div>
             {Number(venta.descuento_total) > 0 && <div className="resumen-row"><span className="muted">Descuento</span><span className="tnum" style={{ color: 'var(--neg)' }}>− {q(venta.descuento_total)}</span></div>}
             <div className="resumen-total"><span>Total</span><span className="tnum">{q(venta.total)}</span></div>
+            {/* Cuánto del total no entró por el método indicado, sino del saldo
+                que el cliente ya tenía a su favor. */}
+            {Number(venta.saldo_aplicado) > 0 && venta.metodo_pago !== 'saldo' && (
+              <>
+                <div className="resumen-row">
+                  <span className="muted">Pagado con saldo a favor</span>
+                  <span className="tnum">{q(venta.saldo_aplicado)}</span>
+                </div>
+                <div className="resumen-row">
+                  <span className="muted">Por {(METODO_LABEL[venta.metodo_pago] ?? venta.metodo_pago).toLowerCase()}</span>
+                  <span className="tnum">{q(Number(venta.total) - Number(venta.saldo_aplicado))}</span>
+                </div>
+              </>
+            )}
+            {Number(venta.total_devuelto) > 0 && (
+              <>
+                <div className="resumen-row">
+                  <span className="muted">Devuelto</span>
+                  <span className="tnum" style={{ color: 'var(--neg)' }}>− {q(venta.total_devuelto)}</span>
+                </div>
+                <div className="resumen-total"><span>Neto</span><span className="tnum">{q(venta.total_neto)}</span></div>
+              </>
+            )}
           </div>
+
+          {/* Devoluciones. Sin esto la venta parece intacta aunque haya vuelto
+              media mercadería: su estado y su total no cambian nunca. */}
+          {(venta.devoluciones?.length ?? 0) > 0 && (
+            <div className="info-item full">
+              <div className="il"><Undo2 size={13} /> Devoluciones</div>
+              <div style={{ display: 'grid', gap: 8, marginTop: 6 }}>
+                {venta.devoluciones!.map((d) => (
+                  <div key={d.id} className="card" style={{ padding: 10 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                      <strong style={{ fontSize: 12.5 }}>{d.numero_devolucion}</strong>
+                      <span className="tnum" style={{ fontWeight: 600, color: 'var(--neg)' }}>− {q(d.total)}</span>
+                    </div>
+                    <div className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, marginTop: 2 }}>
+                      {fmtFecha(d.fecha)}
+                      {d.usuario && ` · ${d.usuario.nombres} ${d.usuario.apellidos}`.trimEnd()}
+                      {' · '}
+                      {[
+                        Number(d.aplicado_a_deuda) > 0 && `${q(d.aplicado_a_deuda)} a la deuda`,
+                        Number(d.reembolsado) > 0 && `${q(d.reembolsado)} devueltos`,
+                        Number(d.aplicado_a_saldo) > 0 && `${q(d.aplicado_a_saldo)} a su favor`,
+                      ].filter(Boolean).join(' y ')}
+                    </div>
+                    {d.detalles && d.detalles.length > 0 && (
+                      <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>
+                        {d.detalles.map((l) => (
+                          <div key={l.id}>
+                            {l.cantidad}× {l.descripcion}
+                            {!l.vuelve_a_inventario && <span style={{ color: 'var(--neg)' }}> · no volvió a inventario</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="muted" style={{ fontSize: 11, marginTop: 4, fontStyle: 'italic' }}>{d.motivo}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {venta.observaciones && (
             <div className="info-item full">

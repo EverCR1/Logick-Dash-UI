@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ClienteForm } from './ClienteForm'
+import { SaldoCliente } from '../saldos/SaldoCliente'
 import { inicialesNombre } from '@/lib/text'
 import { clientesApi } from '@/lib/api'
 import { q, fmtN, fmtFecha } from '@/lib/format'
@@ -112,6 +113,8 @@ export default function ClienteDetalle() {
               <TlItem icon={<CalendarDays />} label="Cliente desde" value={c.created_at ? fmtFecha(c.created_at) : '—'} />
             </div>
           </div>
+
+          <SaldoCliente cliente={{ id: c.id, nombre: c.nombre }} />
 
           <div className="card">
             <div className="card-header"><div className="card-title"><AlertCircle size={15} style={{ color: 'var(--neg)' }} />Zona de riesgo</div></div>

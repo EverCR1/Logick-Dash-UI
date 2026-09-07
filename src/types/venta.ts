@@ -2,7 +2,7 @@ import type { CambioLinea } from './cotizacion'
 import type { OpcionCatalogo, Paginado } from './producto'
 
 export type VentaEstado = 'completada' | 'pendiente' | 'cancelada'
-export type MetodoPago = 'efectivo' | 'tarjeta' | 'transferencia' | 'mixto' | 'credito'
+export type MetodoPago = 'efectivo' | 'tarjeta' | 'transferencia' | 'mixto' | 'credito' | 'saldo'
 /** Solo dos: una línea escrita a mano sigue siendo un producto o un servicio.
  *  Lo que la distingue es no tener producto_id ni servicio_id. */
 export type ItemTipo = 'producto' | 'servicio'
@@ -40,6 +40,37 @@ export interface Venta {
   cliente: { id: number; nombre: string; nit: string | null } | null
   usuario: { id: number; nombres: string; apellidos: string } | null
   detalles: VentaDetalle[]
+  /**
+   * Derivados de las devoluciones que referencian a esta venta. La venta no se
+   * modifica al devolver —`total` sigue siendo lo facturado—, así que estos
+   * campos son lo que permite ver que algo volvió.
+   */
+  total_devuelto: number
+  total_neto: number
+  esta_devuelta: boolean
+  /**
+   * Parte del total cubierta con el saldo a favor del cliente. Cuando el saldo
+   * cubre todo, `metodo_pago` ya es 'saldo'; esto importa en los pagos parciales,
+   * donde el método solo nombra cómo se pagó el resto.
+   */
+  saldo_aplicado: number
+  /** Solo en el detalle: las devoluciones con sus líneas. */
+  devoluciones?: VentaDevolucion[]
+}
+
+/** Una devolución vista desde la venta que la originó. */
+export interface VentaDevolucion {
+  id: number
+  numero_devolucion: string
+  fecha: string
+  motivo: string
+  total: number
+  aplicado_a_deuda: number
+  reembolsado: number
+  aplicado_a_saldo: number
+  metodo_reembolso: string | null
+  usuario?: { id: number; nombres: string; apellidos: string } | null
+  detalles?: { id: number; descripcion: string; cantidad: number; total: number; vuelve_a_inventario: boolean }[]
 }
 
 export interface VentaEstadisticas {
@@ -65,6 +96,8 @@ export interface VentaFiltros {
   monto_max?: number
   sucursal_id?: number
   vendedor_id?: number
+  /** Solo las ventas de las que volvió algo. */
+  con_devoluciones?: boolean
   sort?: 'fecha_desc' | 'fecha_asc' | 'total_desc' | 'total_asc'
   page?: number
   per_page?: number
@@ -107,6 +140,8 @@ export interface ClienteBusqueda {
   nit: string | null
   email: string | null
   telefono: string | null
+  /** Saldo a favor del cliente, para poder ofrecerlo en el punto de venta. */
+  saldo_favor?: number | null
 }
 
 export interface VentaItemPayload {
@@ -130,6 +165,11 @@ export interface StoreVentaPayload {
   sucursal_id?: number | null
   /** Origen: la cotización queda marcada como convertida al guardarse la venta. */
   cotizacion_id?: number | null
+  /**
+   * Saldo a favor del cliente que paga esta venta. El backend lo topa al total y
+   * rechaza la venta si el saldo no alcanza.
+   */
+  saldo_aplicado?: number | null
 }
 
 // ── Repetir una venta ────────────────────────────────────────────────────────

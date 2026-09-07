@@ -55,7 +55,11 @@ export function ResumenVariantes({ nombreBase, combinaciones, filas }: ResumenVa
           const fila = filas[combo.clave]
           return (
             <li key={combo.clave}>
-              <span className="resumen-nombre">{nombreDeCombinacion(nombreBase, combo)}</span>
+              {/* Con el nombre propio de la fila si lo tiene: este resumen es la
+                  última oportunidad de ver cómo quedará cada variante. */}
+              <span className="resumen-nombre">
+                {nombreDeCombinacion(filas[combo.clave]?.nombre.trim() || nombreBase, combo)}
+              </span>
               <span className="muted">
                 {fila?.sku || 'sin SKU'}
                 {fila?.precio_venta ? ` · ${q(Number(fila.precio_venta))}` : ''}

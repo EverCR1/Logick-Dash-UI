@@ -415,6 +415,14 @@ function ResumenNegocio({ d }: { d: DashboardData }) {
       <MiniStat to="/servicios" icon="Boxes" tone="info" label="Servicios" value={fmtN(d.servicios.total)} />
       <MiniStat to="/creditos" icon="Card" tone="violet" label="Créditos activos" value={fmtN(d.creditos.activos)}
         badge={d.creditos.capital_pendiente > 0 ? { tone: 'warn', text: `${q(d.creditos.capital_pendiente)} pend.` } : undefined} />
+      {/* El espejo del crédito: dinero de clientes que está en la caja pero no es
+          del negocio. Aquí porque un pasivo que no se ve a diario se gasta como
+          si fuera ingreso. Lleva a los clientes que lo tienen. */}
+      <MiniStat to="/clientes?con_saldo=1" icon="Cash" tone="info" label="Saldo a favor"
+        value={`Q ${fmtN(d.saldos_favor.total)}`}
+        badge={d.saldos_favor.clientes > 0
+          ? { tone: 'warn', text: `${d.saldos_favor.clientes} cliente${d.saldos_favor.clientes === 1 ? '' : 's'}` }
+          : undefined} />
       <MiniStat to="/proveedores" icon="Truck" tone="warn" label="Proveedores" value={fmtN(d.proveedores.total)} />
       <MiniStat to="/categorias" icon="Tag" tone="accent" label="Categorías" value={fmtN(d.categorias.total)} />
     </div>

@@ -10,17 +10,22 @@ export interface Cliente {
   tipo: 'natural' | 'juridico'
   estado: 'activo' | 'inactivo'
   notas: string | null
+  /** Saldo a favor: dinero suyo que está en la caja del negocio. */
+  saldo_favor?: number | null
 }
 
 export type ClienteSort =
   | 'nombre_asc' | 'nombre_desc'
   | 'recientes' | 'antiguos'
   | 'compras_desc' | 'monto_desc'
+  | 'saldo_desc'
 
 export interface ClienteFiltros {
   search?: string
   estado?: string
   tipo?: string
+  /** Solo los que hoy tienen dinero a su favor. */
+  con_saldo?: boolean
   sort?: ClienteSort
   page?: number
   per_page?: number
@@ -31,6 +36,9 @@ export interface ClienteCounts {
   inactivos: number
   naturales: number
   juridicos: number
+  clientes_con_saldo: number
+  /** Pasivo del negocio: lo que se le debe al conjunto de clientes. */
+  saldo_favor_total: number
 }
 
 export interface ClientesResponse {

@@ -8,6 +8,15 @@ export interface NavItem {
   count?: number
   /** Roles con acceso. Si se omite, visible para todos. */
   roles?: Rol[]
+  /**
+   * Fuera del menú, pero con ruta y control de rol.
+   *
+   * Para módulos a los que no se entra desde el sidebar sino desde su contexto
+   * —una devolución parte siempre de una venta—. Quitar la entrada del todo no
+   * sirve: las rutas se generan de aquí, y `puedeAcceder` deja pasar cualquier
+   * ruta que no encuentre, así que la pantalla quedaría sin ruta y sin permiso.
+   */
+  oculto?: boolean
 }
 
 export interface NavGroup {
@@ -50,6 +59,8 @@ export const NAV: NavEntry[] = [
       { to: '/ventas', label: 'Ventas', icon: 'Cart', roles: GESTION_OPERACIONES },
       { to: '/cotizaciones', label: 'Cotizaciones', icon: 'FileText', roles: GESTION_OPERACIONES },
       { to: '/creditos', label: 'Créditos', icon: 'Card', roles: GESTION_OPERACIONES },
+      // Se entra desde Ventas: una devolución siempre parte de una venta
+      { to: '/devoluciones', label: 'Devoluciones', icon: 'Cart', roles: GESTION_OPERACIONES, oculto: true },
     ],
   },
   {
@@ -119,6 +130,7 @@ export const NAV_TITLES: Record<string, string> = {
   '/ventas': 'Ventas',
   '/cotizaciones': 'Cotizaciones',
   '/creditos': 'Créditos',
+  '/devoluciones': 'Devoluciones',
   '/pedidos': 'Pedidos',
   '/resenas': 'Reseñas',
   '/preguntas': 'Preguntas',

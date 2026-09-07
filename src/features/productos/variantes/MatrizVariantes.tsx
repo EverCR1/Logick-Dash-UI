@@ -6,6 +6,15 @@ import type { ImagenesDeVariante } from './ImagenesVariante'
 /** Lo editable de cada fila de la matriz. */
 export interface FilaVariante {
   incluida: boolean
+  /**
+   * Nombre propio de esta variante. Vacío hereda el del formulario.
+   *
+   * Agrupar no obliga a compartir nombre: un "XPS 13" y un "XPS 13 Plus" pueden
+   * ser variantes entre sí. Lo que se escribe aquí es el nombre base —los
+   * atributos y el color se siguen anexando— para que `nombre_completo` se
+   * calcule igual que en cualquier otro producto.
+   */
+  nombre: string
   sku: string
   codigo_barras: string
   precio_compra: string
@@ -165,7 +174,7 @@ export function MatrizVariantes({
               <FilaMatriz
                 key={combo.clave}
                 combo={combo}
-                nombre={nombreDeCombinacion(nombreBase, combo)}
+                nombreBase={nombreBase}
                 fila={filas[combo.clave]}
                 errores={errores?.[combo.clave]}
                 onCampo={onCampo}
@@ -184,7 +193,7 @@ export function MatrizVariantes({
           <TarjetaVariante
             key={combo.clave}
             combo={combo}
-            nombre={nombreDeCombinacion(nombreBase, combo)}
+            nombreBase={nombreBase}
             fila={filas[combo.clave]}
             errores={errores?.[combo.clave]}
             abierta={abiertas.has(combo.clave)}
@@ -227,7 +236,7 @@ export function MatrizVariantes({
             <ul className="matriz-descartadas-lista">
               {descartadas.map((combo) => (
                 <li key={combo.clave}>
-                  <span>{nombreDeCombinacion(nombreBase, combo)}</span>
+                  <span>{nombreDeCombinacion(filas[combo.clave]?.nombre.trim() || nombreBase, combo)}</span>
                   <button type="button" className="btn btn-sm" onClick={() => onIncluida(combo.clave, true)}>
                     <RotateCcw size={12} /> Restaurar
                   </button>
@@ -243,7 +252,8 @@ export function MatrizVariantes({
 
 interface FilaProps {
   combo: Combinacion
-  nombre: string
+  /** Nombre del formulario; cada fila puede pisarlo con el suyo. */
+  nombreBase: string
   fila?: FilaVariante
   errores?: Partial<Record<CampoFila, string>>
   onCampo: (clave: string, campo: CampoFila, valor: string) => void
@@ -276,7 +286,7 @@ function BotonImagenes({ clave, imagenes, deshabilitado, onAbrir }: {
  * siete campos, casi 200 inputs. Sin esto cada tecla repintaría la matriz entera.
  */
 const FilaMatriz = memo(function FilaMatriz({
-  combo, nombre, fila, errores, onCampo, onIncluida, imagenes, onAbrirImagenes,
+  combo, nombreBase, fila, errores, onCampo, onIncluida, imagenes, onAbrirImagenes,
 }: FilaProps) {
   const cambiar = useCallback(
     (campo: CampoFila, valor: string) => onCampo(combo.clave, campo, valor),
@@ -285,17 +295,22 @@ const FilaMatriz = memo(function FilaMatriz({
 
   if (!fila) return null
   const apagada = !fila.incluida
+  const completo = nombreDeCombinacion(fila.nombre.trim() || nombreBase, combo)
 
   return (
     <tr data-excluida={apagada || undefined}>
       <td>
-        <input type="checkbox" checked={fila.incluida} aria-label={`Incluir ${nombre}`}
+        <input type="checkbox" checked={fila.incluida} aria-label={`Incluir ${completo}`}
           onChange={(e) => onIncluida(combo.clave, e.target.checked)} />
       </td>
       <td className="col-id">
-        <div style={{ fontWeight: 500 }}>{nombre}</div>
-        <div className="muted" style={{ fontSize: 11 }}>
-          {combo.atributos.map((a) => `${a.nombre}: ${a.valor}`).join(' · ')}
+        {/* Editable: el placeholder es el nombre del formulario, así que dejarlo
+            vacío hereda y escribir algo solo afecta a esta variante. */}
+        <input className="form-input" value={fila.nombre} placeholder={nombreBase || 'Nombre del producto'}
+          disabled={apagada} aria-label={`Nombre de ${completo}`}
+          onChange={(e) => cambiar('nombre', e.target.value)} />
+        <div className="muted" style={{ fontSize: 11, marginTop: 3 }}>
+          {completo}
         </div>
       </td>
       {COLUMNAS.map((c) => (
@@ -312,7 +327,7 @@ const FilaMatriz = memo(function FilaMatriz({
 })
 
 const TarjetaVariante = memo(function TarjetaVariante({
-  combo, nombre, fila, errores, abierta, onAlternar, onCampo, onIncluida, imagenes, onAbrirImagenes,
+  combo, nombreBase, fila, errores, abierta, onAlternar, onCampo, onIncluida, imagenes, onAbrirImagenes,
 }: FilaProps & { abierta: boolean; onAlternar: (clave: string) => void }) {
   const cambiar = useCallback(
     (campo: CampoFila, valor: string) => onCampo(combo.clave, campo, valor),
@@ -321,16 +336,17 @@ const TarjetaVariante = memo(function TarjetaVariante({
 
   if (!fila) return null
   const conError = errores && Object.keys(errores).length > 0
+  const completo = nombreDeCombinacion(fila.nombre.trim() || nombreBase, combo)
 
   return (
     <div className="matriz-tarjeta" data-excluida={!fila.incluida || undefined} data-error={conError || undefined}>
       <div className="matriz-tarjeta-head">
-        <input type="checkbox" checked={fila.incluida} aria-label={`Incluir ${nombre}`}
+        <input type="checkbox" checked={fila.incluida} aria-label={`Incluir ${completo}`}
           onChange={(e) => onIncluida(combo.clave, e.target.checked)} />
         <button type="button" className="matriz-tarjeta-titulo" onClick={() => onAlternar(combo.clave)}
           aria-expanded={abierta}>
           <div>
-            <div style={{ fontWeight: 500 }}>{nombre}</div>
+            <div style={{ fontWeight: 500 }}>{completo}</div>
             <div className="muted" style={{ fontSize: 11 }}>
               {fila.sku || 'Sin SKU'} · {fila.precio_venta ? `Q${fila.precio_venta}` : 'sin precio'} · {fila.stock || 0} u.
             </div>
@@ -341,6 +357,11 @@ const TarjetaVariante = memo(function TarjetaVariante({
 
       {abierta && (
         <div className="matriz-tarjeta-campos">
+          <label className="form-field" style={{ gridColumn: '1 / -1' }}>
+            <span>Nombre</span>
+            <input className="form-input" value={fila.nombre} placeholder={nombreBase || 'Nombre del producto'}
+              disabled={!fila.incluida} onChange={(e) => cambiar('nombre', e.target.value)} />
+          </label>
           {COLUMNAS.map((c) => (
             <label key={c.campo} className="form-field">
               <span>{c.etiqueta}</span>

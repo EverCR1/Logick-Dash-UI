@@ -40,6 +40,14 @@ export interface GrupoBasePayload {
 
 /** Lo que distingue a cada variante dentro del grupo. */
 export interface VariantePayload {
+  /**
+   * Nombre propio de la variante. Nulo hereda el de `base`.
+   *
+   * Agrupar no obliga a compartir nombre: un "XPS 13" y un "XPS 13 Plus" pueden
+   * ser variantes entre sí. Es el nombre base — los atributos y el color se
+   * siguen anexando para formar `nombre_completo`.
+   */
+  nombre: string | null
   sku: string
   codigo_barras: string | null
   color: string | null

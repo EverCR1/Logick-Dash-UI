@@ -66,6 +66,8 @@ export interface DashboardData {
   productos: { total: number; stock_bajo: number; agotados: number; valor_inventario: number }
   servicios: { total: number; activos: number }
   creditos: { activos: number; capital_pendiente: number }
+  /** Pasivo: dinero de clientes en la caja del negocio. */
+  saldos_favor: { clientes: number; total: number }
   proveedores: { total: number; activos: number }
   categorias: { total: number; nivel_0: number }
   tienda: {
